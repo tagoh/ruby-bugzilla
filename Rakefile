@@ -1,18 +1,20 @@
 require 'rubygems'
 require 'rake'
+require File.join(File.dirname(__FILE__), "lib", "ruby-bugzilla.rb")
 
 begin
   require 'jeweler'
   Jeweler::Tasks.new do |gem|
     gem.name = "ruby-bugzilla"
-    gem.summary = %Q{TODO: one-line summary of your gem}
-    gem.description = %Q{TODO: longer description of your gem}
+    gem.summary = %Q{Ruby binding for Bugzilla WebService APIs}
+    gem.description = %Q{This aims to provide similar features to access to Bugzilla through WebService APIs in Ruby.}
     gem.email = "akira@tagoh.org"
     gem.homepage = "http://github.com/tagoh/ruby-bugzilla"
     gem.authors = ["Akira TAGOH"]
     gem.rubyforge_project = "ruby-bugzilla"
     gem.add_development_dependency "rspec", ">= 1.2.9"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
+    gem.version = Bugzilla::VERSION
   end
   Jeweler::GemcutterTasks.new
   Jeweler::RubyforgeTasks.new do |rubyforge|
