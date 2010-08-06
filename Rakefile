@@ -1,6 +1,6 @@
 require 'rubygems'
 require 'rake'
-require File.join(File.dirname(__FILE__), "lib", "ruby-bugzilla.rb")
+require File.join(File.dirname(__FILE__), "lib", "bugzilla.rb")
 
 begin
   require 'jeweler'
@@ -11,15 +11,15 @@ begin
     gem.email = "akira@tagoh.org"
     gem.homepage = "http://github.com/tagoh/ruby-bugzilla"
     gem.authors = ["Akira TAGOH"]
-    gem.rubyforge_project = "ruby-bugzilla"
+    #gem.rubyforge_project = "ruby-bugzilla"
     gem.add_development_dependency "rspec", ">= 1.2.9"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
     gem.version = Bugzilla::VERSION
   end
   Jeweler::GemcutterTasks.new
-  Jeweler::RubyforgeTasks.new do |rubyforge|
-    rubyforge.doc_task = "rdoc"
-  end
+#  Jeweler::RubyforgeTasks.new do |rubyforge|
+#    rubyforge.doc_task = "rdoc"
+#  end
 rescue LoadError
   puts "Jeweler (or a dependency) not available. Install it with: gem install jeweler"
 end
