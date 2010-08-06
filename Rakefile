@@ -15,6 +15,8 @@ begin
     gem.add_development_dependency "rspec", ">= 1.2.9"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
     gem.version = Bugzilla::VERSION
+    gem.files = FileList['bin/*', 'data/**/*', 'lib/**/*.rb', '[A-Z]*', 'test/**/*'].to_a.reject{|x| x =~ /~\Z|#\Z|swp\Z/}
+    gem.executables.reject!{|x| x =~ /~\Z|#\Z|swp\Z/}
   end
   Jeweler::GemcutterTasks.new
 #  Jeweler::RubyforgeTasks.new do |rubyforge|
