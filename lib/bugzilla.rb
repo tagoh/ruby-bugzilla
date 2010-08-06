@@ -578,14 +578,46 @@ User Accounts and log in/out using an existing account.
 
   class User < APITemplate
 
+=begin rdoc
+
+==== Bugzilla::User#session(user, password)
+
+Keeps the bugzilla session during doing something in the block.
+
+=end
+
+    def session(user, password)
+      login({'login'=>user, 'password'=>password, 'remember'=>true})
+      yield
+      logout
+    end # def session
+
+=begin rdoc
+
+==== Bugzilla::User#login(params)
+
+Raw Bugzilla API to log into Bugzilla.
+
+=end
+
+=begin rdoc
+
+==== Bugzilla::User#logout
+
+Raw Bugzilla API to log out the user.
+
+=end
+
     protected
 
-    def __login(cmd, *args)
-      # FIXME
+    def _login(cmd, *args)
+      raise ArgumentError, "Invalid parameters" unless args[0].kind_of?(Hash)
+
+      @iface.call(cmd,args[0])
     end # def _login
 
     def __logout(cmd, *args)
-      # FIXME
+      @iface.call(cmd)
     end # def _logout
 
     def __offer_account_by_email(cmd, *args)
@@ -604,28 +636,3 @@ User Accounts and log in/out using an existing account.
   end # class User
 
 end # module Bugzilla
-
-if $0 == __FILE__ then
-  require 'pp'
-
-  xmlrpc = Bugzilla::XMLRPC.new('bugzilla.redhat.com')
-  p = Bugzilla::Bug.new(xmlrpc)
-  p p.history(618271)
-  exit
-  pp p.get(618271)
-  p p.comments({'ids'=>[618271]})
-  p p.attachments({'ids'=>[618271]})
-  p p.legal_values({'field'=>'product'})
-  p p.fields
-  exit
-  p = Bugzilla::Bugzilla.new(xmlrpc)
-  p p.version
-  p p.extensions
-  p p.time
-  exit
-  p = Bugzilla::Product.new(xmlrpc)
-  ids = p.get_selectable_products
-  p p.get(ids)
-  p p.get_enterable_products
-  p p.get_accessible_products
-end
