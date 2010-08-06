@@ -370,6 +370,51 @@ have already been filed.
 
   class Bug < APITemplate
 
+    FIELDS_SUMMARY = ["id", "product", "component", "status", "severity", "summary"]
+    FIELDS_DETAILS = FIELDS_SUMMARY + ["assigned_to", "internals", "priority", "resolution"]
+    FIELDS_ALL = ["alias", "assigned_to", "component",
+                  "creation_time", "dupe_of",
+                  "external_bugs", "groups", "id",
+                  "internals", "is_open",
+                  "last_change_time", "priority", "product",
+                  "resolution", "severity", "status",
+                  "summary"]
+
+=begin rdoc
+
+==== Bugzilla::Bug#get_bugs(bugs, fields = Bugzilla::Bug::FIELDS_SUMMARY)
+
+Get the _bugs_ information from Bugzilla. either of String
+or Numeric or Array would be acceptable for _bugs_. you can
+specify the fields you want to look up with _fields_.
+
+FWIW this name conflicts to Bugzilla API but this isn's a
+primitive method since get_bugs method in WebService API is
+actually deprecated.
+
+=end
+
+    def get_bugs(bugs, fields = ::Bugzilla::Bug::FIELDS_SUMMARY)
+      params = {}
+
+      if bugs.kind_of?(Array) then
+        params['ids'] = bugs
+      elsif bugs.kind_of?(Integer) ||
+          bugs.kind_of?(String) then
+        params['ids'] = [bugs]
+      else
+        raise ArgumentError, sprintf("Unknown type of arguments: %s", bugs.class)
+      end
+      unless fields.nil? then
+        unless (fields - ::Bugzilla::Bug::FIELDS_ALL).empty? then
+          raise ArgumentError, sprintf("Invalid fields: %s", (::Bugzilla::Bug::FIELDS_ALL - fields).join(' '))
+        end
+        params['include_fields'] = fields
+      end
+
+      get(params)
+    end # def get_bugs
+
 =begin rdoc
 
 ==== Bugzilla::Bug#fields(params)
@@ -587,9 +632,13 @@ Keeps the bugzilla session during doing something in the block.
 =end
 
     def session(user, password)
-      login({'login'=>user, 'password'=>password, 'remember'=>true})
-      yield
-      logout
+      if user.nil? || password.nil? then
+        yield
+      else
+        login({'login'=>user, 'password'=>password, 'remember'=>true})
+        yield
+        logout
+      end
     end # def session
 
 =begin rdoc
