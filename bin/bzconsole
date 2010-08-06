@@ -26,6 +26,8 @@ require 'rubygems'
 require 'pp'
 
 
+$KCODE = 'u'
+
 begin
   gem 'ruby-bugzilla'
 rescue Gem::LoadError
@@ -148,9 +150,31 @@ module BzConsole
                  result['severity'],
                  result['summary'])
         elsif opts[:command][:details] == true then
-          pp result
+          printf("Bug#%s, %s, %s, %s[%s, %s, %s, %s] %s\n",
+                 result['id'],
+                 result['product'],
+                 result['assigned_to'],
+                 result['component'],
+                 result['status'],
+                 result['resolution'],
+                 result['priority'],
+                 result['severity'],
+                 result['summary'])
         else
-          pp result
+          printf("Bug#%s - %s\n", result['id'], result['summary'])
+          printf("Status:\t\t%s%s\n", result['status'], !result['resolution'].empty? ? sprintf("[%s]", result['resolution']) : "")
+          printf("Product:\t%s\n", result['product'])
+          printf("Component:\t%s\n", result['component'])
+          printf("Assinged To:\t%s\n", result['assigned_to'])
+          printf("Priority:\t%s\n", result['priority'])
+          printf("Severity:\t%s\n", result['severity'])
+          printf("Comments:\t%d\n\n", result['comments'].length)
+          i = 0
+          result['comments'].each do |c|
+            printf("Comment#%d%s %s  %s\n", i, c['is_private'] == true ? "[private]" : "", c['author'], c['time'].to_time)
+            printf("\n  %s\n\n", c['text'].split("\n").join("\n  "))
+            i += 1
+          end
         end
       end
     end # def do
@@ -191,10 +215,8 @@ module BzConsole
             result = bug.get_bugs(nnn.split(','), nil)
           end
 
-          if result.include?('bugs') then
-            result['bugs'].each do |r|
-              yield r
-            end
+          result.each do |r|
+            yield r
           end
         end
       end

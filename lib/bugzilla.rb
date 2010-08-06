@@ -412,8 +412,48 @@ actually deprecated.
         params['include_fields'] = fields
       end
 
-      get(params)
+      result = get(params)
+
+      if fields.nil? || fields == ::Bugzilla::Bug::FIELDS_ALL then
+        get_comments(bugs).each do |id, c|
+          result['bugs'].each do |r|
+            if r['id'].to_s == id then
+              r['comments'] = c['comments']
+              r['comments'] = [] if r['comments'].nil?
+              break
+            end
+          end
+        end 
+      end
+
+      # 'bugs' is only in interests.
+      # XXX: need to deal with 'faults' ?
+      result['bugs']
     end # def get_bugs
+
+=begin rdoc
+
+==== Bugzilla::Bug#get_comments(bugs)
+
+=end
+
+    def get_comments(bugs)
+      params = {}
+
+      if bugs.kind_of?(Array) then
+        params['ids'] = bugs
+      elsif bugs.kind_of?(Integer) ||
+          bugs.kind_of?(String) then
+        params['ids'] = [bugs]
+      else
+        raise ArgumentError, sprintf("Unknown type of arguments: %s", bugs.class)
+      end
+
+      result = comments(params)
+
+      # not supporting comment_ids. so drop "comments".
+      result['bugs']
+    end # def get_comments
 
 =begin rdoc
 
