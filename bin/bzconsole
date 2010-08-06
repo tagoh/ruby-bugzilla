@@ -1,0 +1,250 @@
+#! /usr/bin/env ruby
+# bzconsole.rb
+# Copyright (C) 2010 Red Hat, Inc.
+#
+# Authors:
+#   Akira TAGOH  <tagoh@redhat.com>
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the
+# Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+# Boston, MA 02111-1307, USA.
+
+require 'optparse'
+require 'yaml'
+require 'rubygems'
+require 'pp'
+
+
+begin
+  gem 'ruby-bugzilla'
+rescue Gem::LoadError
+  require File.join(File.dirname(__FILE__), "..", "lib", "bugzilla.rb")
+end
+
+module BzConsole
+
+  class CommandTemplate
+
+    def initialize
+      @n_args = 0
+      @defaultyamlfile = File.join(ENV['HOME'], ".bzconsole.yml")
+    end # def initialize
+
+    attr_reader :n_args
+
+    def parse(parser, argv, opts)
+      raise RuntimeError, sprintf("No implementation for %s", self.class) if self.class =~ /CommandTemplate/
+
+      parser.on('-h', '--help', 'show this message') {|x| opts[:help] = true}
+
+      parser.order(argv)
+    end # def parse
+
+    def read_config(opts)
+      fname = opts[:config].nil? ? @defaultyamlfile : opts[:config]
+      YAML.load(File.open(fname).read)
+    end # def read_config
+
+    def do(argv)
+      raise RuntimeError, sprintf("No implementation for %s", self.class)
+    end # def do
+
+  end # class CommandTemplate
+
+  class Setup < CommandTemplate
+
+    def initialize
+      super
+
+      @n_args = 0
+    end # def initialize
+
+    def parse(parser, argv, opts)
+      parser.banner = sprintf("Usage: %s [global options] setup", File.basename(__FILE__))
+      parser.separator ""
+      parser.separator "Command options:"
+
+      super
+    end # def parse
+
+    def do(argv, opts)
+      template = {
+        "rhbz"=>{
+          :Name=>"Red Hat Bugzilla",
+          :URL=>"https://bugzilla.redhat.com/",
+          :User=>"account@example.com",
+          :Password=>"blahblahblah",
+        },
+        "gnbz"=>{
+          :Name=>"GNOME Bugzilla",
+          :URL=>"https://bugzilla.gnome.org/",
+          :User=>"account@example.com",
+          :Password=>"blahblahblah",
+        },
+        "fdobz"=>{
+          :Name=>"FreeDesktop Bugzilla",
+          :URL=>"https://bugs.freedesktop.org/",
+          :User=>"account@example.com",
+          :Password=>"blahblahblah",
+        },
+        "mzbz"=>{
+          :Name=>"Mozilla Bugzilla",
+          :URL=>"https://bugzilla.mozilla.org/",
+          :User=>"account@example.com",
+          :Password=>"blahblahblah",
+        }
+      }
+      fname = opts[:config].nil? ? @defaultyamlfile : opts[:config]
+      if File.exist?(fname) then
+        raise RuntimeError, ".bzconsole.yml already exists. please remove it first to proceed to the next step."
+      end
+      File.open(fname, File::CREAT|File::WRONLY, 0600) do |f|
+        f.write(template.to_yaml)
+      end
+      printf("%s has been created. please modify your account information before operating.\n", fname)
+    end # def do
+
+  end # class Setup
+
+  class Getbug < CommandTemplate
+
+    def initialize
+      super
+
+      @n_args = 1
+    end # def initialize
+
+    def parse(parser, argv, opts)
+      parser.banner = sprintf("Usage: %s [global options] getbug [command options] <prefix:bug number> ...", File.basename(__FILE__))
+      parser.separator ""
+      parser.separator "Command Options:"
+      parser.on('-s', '--summary', 'Displays bugs summary only') {opts[:summary] = true}
+      parser.on('-d', '--details', 'Displays detailed bugs information') {opts[:details] = true}
+      parser.on('-a', '--all', 'Displays the whole data in bugs') {opts[:all] = true}
+      parser.on('--anonymous', 'Access to Bugzilla anonymously') {opts[:anonymous] = true}
+
+      super
+    end # def parse
+
+    def do(argv, opts)
+      real_do(argv, opts) do |result|
+        if opts[:command][:summary] == true then
+          printf("Bug#%s, %s, %s[%s, %s] %s\n",
+                 result['id'],
+                 result['product'],
+                 result['component'],
+                 result['status'],
+                 result['severity'],
+                 result['summary'])
+        elsif opts[:command][:details] == true then
+          pp result
+        else
+          pp result
+        end
+      end
+    end # def do
+
+    private
+
+    def real_do(argv, opts)
+      conf = read_config(opts)
+      conf.freeze
+      argv.each do |bugn|
+        bugn =~ /(.*):(.*)/
+        prefix = $1
+        nnn = $2
+        if prefix.nil? then
+          raise ArgumentError, sprintf("No prefix specified for Bug#%s", bugn)
+        end
+        unless conf.include?(prefix) then
+          raise RuntimeError, sprintf("No host information for %s", prefix)
+        end
+
+        info = conf[prefix]
+        host = info[:URL].sub(/\Ahttps?:\/\//, '').sub(/\/\Z/, '')
+        port = info[:URL] =~ /\Ahttps:/ ? 443 : 80
+        login = opts[:command][:anonymous] == true ? nil : info[:User]
+        pass = opts[:command][:anonymous] == true ? nil : info[:Password]
+
+        xmlrpc = Bugzilla::XMLRPC.new(host, port)
+        user = Bugzilla::User.new(xmlrpc)
+        user.session(login, pass) do
+          bug = Bugzilla::Bug.new(xmlrpc)
+
+          result = nil
+          if opts[:command][:summary] == true then
+            result = bug.get_bugs(nnn.split(','))
+          elsif opts[:command][:details] == true then
+            result = bug.get_bugs(nnn.split(','), ::Bugzilla::Bug::FIELDS_DETAILS)
+          else
+            result = bug.get_bugs(nnn.split(','), nil)
+          end
+
+          if result.include?('bugs') then
+            result['bugs'].each do |r|
+              yield r
+            end
+          end
+        end
+      end
+    end # def real_do
+
+  end # class Getbug
+
+end # module BzConsole
+
+if $0 == __FILE__ then
+  begin
+    opts = {}
+    opts[:command] = {}
+    subargv = []
+
+    o = ARGV.options do |opt|
+      opt.banner = sprintf("Usage: %s [global options] <command> ...", File.basename(__FILE__))
+      opt.separator ""
+      opt.separator "Global options:"
+      opt.on('-c', '--config=FILE', 'read FILE as the configuration file.') {|v| opts[:config] = v}
+      opt.on('-h', '--help', 'show this message') {|x| opts[:help] = true}
+
+      cmds = BzConsole.constants.sort.map {|x| (k = eval("BzConsole::#{x}")).class == Class && x != "CommandTemplate" ? x.downcase : nil}.compact
+
+      subargv = opt.order(ARGV);
+
+      if subargv.length > 0 then
+	n = cmds.index(subargv[0])
+        unless n.nil? then
+          opts[:instance] = eval("BzConsole::#{cmds[n].capitalize}.new")
+          subargv = opts[:instance].parse(opt, subargv[1..-1], opts[:command])
+        else
+          STDERR.printf("E: Unknown command: %s\n", subargv[0])
+          STDERR.printf("   Available commands: %s\n", cmds.join(' '))
+          exit 1
+        end
+      else
+        opt.separator ""
+        opt.separator "Available commands:"
+        opt.separator sprintf("  %s", cmds.join(' '))
+      end
+
+      if opts[:instance].nil? && ARGV.length == 0 ||
+          opts[:help] == true ||
+          subargv.length < opts[:instance].n_args then
+        puts opt.help
+        exit
+      end
+    end
+
+    opts[:instance].do(subargv, opts)
+  end
+end
