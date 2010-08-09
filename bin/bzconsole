@@ -21,6 +21,7 @@
 # Boston, MA 02111-1307, USA.
 
 require 'optparse'
+require 'time'
 require 'yaml'
 require 'rubygems'
 require 'pp'
@@ -130,7 +131,7 @@ module BzConsole
     def parse(parser, argv, opts)
       parser.banner = sprintf("Usage: %s [global options] getbug [command options] <prefix:bug number> ...", File.basename(__FILE__))
       parser.separator ""
-      parser.separator "Command Options:"
+      parser.separator "Command options:"
       parser.on('-s', '--summary', 'Displays bugs summary only') {opts[:summary] = true}
       parser.on('-d', '--details', 'Displays detailed bugs information') {opts[:details] = true}
       parser.on('-a', '--all', 'Displays the whole data in bugs') {opts[:all] = true}
@@ -223,6 +224,172 @@ module BzConsole
     end # def real_do
 
   end # class Getbug
+
+  class Search < CommandTemplate
+
+    def initialize
+      super
+
+      @n_args = 1
+    end # def initialize
+
+    def parse(parser, argv, opts)
+      opts[:query] ||= {}
+      parser.banner = sprintf("Usage: %s [global options] search [command options] <prefix> ...", File.basename(__FILE__))
+      parser.separator ""
+      parser.separator "Search options:"
+      parser.on('--alias=ALIASES', 'filter out the result by the alias') {|v| opts[:query][:alias] ||= []; opts[:query][:alias].push(*v.split(','))}
+      parser.on('-a', '--assignee=ASSIGNEES', 'filter out the result by the specific assignees') {|v| opts[:query][:assigned_to] ||= []; opts[:query][:assigned_to].push(*v.split(','))}
+      parser.on('--bug=BUGS', 'filter out the result by the specific bug number') {|v| opts[:query][:id] ||= []; opts[:query][:id].push(*v.split(','))}
+      parser.on('-c', '--component=COMPONENTS', 'filter out the result by the specific components') {|v| opts[:query][:component] ||= []; opts[:query][:component].push(*v.split(','))}
+      parser.on('--create-time=TIME', 'Searches for bugs that were created at this time or later') {|v| opts[:query][:creation_time] = Time.parse(v)}
+      parser.on('--creator=CREATER', 'filter out the result by the specific user who reported bugs') {|v| opts[:query][:creator] ||= []; opts[:query][:creator].push(*v.split(','))}
+      parser.on('--last-change-time=TIME', 'Searches for bugs that were modified at this time or later') {|v| opts[:query][:last_change_time] = Time.parse(v)}
+      parser.on('--op-sys=NAMES', 'filter out the result by the operating system') {|v| opts[:query][:op_sys] ||= []; opts[:query][:op_sys].push(*v.split(','))}
+      parser.on('--platform=PLATFORMS', 'filter out the result by the platform') {|v| opts[:query][:platform] ||= []; opts[:query][:platform].push(*v.split(','))}
+      parser.on('--priority=PRIORITY', 'filter out the result by the priority') {|v| opts[:query][:priority] ||= []; opts[:query][:priority].push(*v.split(','))}
+      parser.on('-p', '--product=PRODUCTS', 'filter out the result by the specific products') {|v| opts[:query][:product] ||= []; opts[:query][:product].push(*v.split(','))}
+      parser.on('--resolution=RESOLUSIONS', 'filter out the result by the resolusions') {|v| opts[:query][:resolution] ||= []; opts[:query][:resolusion].push(*v.split(','))}
+      parser.on('--severity=SEVERITY', 'filter out the result by the severity') {|v| opts[:query][:severity] ||= []; opts[:query][:severity].push(*v.split(','))}
+      parser.on('-s', '--status=STATUSES', 'filter out the result by the status') {|v| opts[:query][:status] ||= []; opts[:query][:status].push(*v.split(','))}
+      parser.on('--summary=SUMMARY', 'filter out the result by the summary') {|v| opts[:query][:summary] ||= []; opts[:query][:summary] << v}
+      parser.on('--milestone=MILESTONE', 'filter out the result by the target milestone') {|v| opts[:query][:target_milestone] ||= []; opts[:query][:target_milestone].push(*v.split(','))}
+      parser.on('--whiteboard=STRING', 'filter out the result by the specific words in the status whiteboard') {|v| opts[:query][:whiteboard] ||= []; opts[:query][:whiteboard] << v}
+      parser.separator ""
+      parser.separator "Command options:"
+      parser.on('-s', '--summary', 'Displays bugs summary only') {opts[:summary] = true}
+      parser.on('-d', '--details', 'Displays detailed bugs information') {opts[:details] = true}
+      parser.on('--anonymous', 'Access to Bugzilla anonymously') {opts[:anonymous] = true}
+
+      super
+    end # def parse
+
+    def do(argv, opts)
+      real_do(argv, opts) do |result|
+        if opts[:command][:summary] == true then
+          printf("Bug#%s, %s, %s[%s, %s] %s\n",
+                 result['id'],
+                 result['product'],
+                 result['component'],
+                 result['status'],
+                 result['severity'],
+                 result['summary'])
+        elsif opts[:command][:details] == true then
+          printf("Bug#%s, %s, %s, %s[%s, %s, %s, %s] %s\n",
+                 result['id'],
+                 result['product'],
+                 result['assigned_to'],
+                 result['component'],
+                 result['status'],
+                 result['resolution'],
+                 result['priority'],
+                 result['severity'],
+                 result['summary'])
+        end
+      end
+    end # def do
+
+    private
+
+    def real_do(argv, opts)
+      conf = read_config(opts)
+      conf.freeze
+      argv.each do |prefix|
+        unless conf.include?(prefix) then
+          raise RuntimeError, sprintf("No host information for %s", prefix)
+        end
+
+        info = conf[prefix]
+        host = info[:URL].sub(/\Ahttps?:\/\//, '').sub(/\/\Z/, '')
+        port = info[:URL] =~ /\Ahttps:/ ? 443 : 80
+        login = opts[:command][:anonymous] == true ? nil : info[:User]
+        pass = opts[:command][:anonymous] == true ? nil : info[:Password]
+
+        xmlrpc = Bugzilla::XMLRPC.new(host, port)
+        user = Bugzilla::User.new(xmlrpc)
+        user.session(login, pass) do
+          bug = Bugzilla::Bug.new(xmlrpc)
+
+          result = bug.search(opts[:command][:query])
+
+          if result.include?('bugs') then
+            result['bugs'].each do |r|
+              yield r
+            end
+          end
+        end
+      end
+    end # def real_do
+
+  end # class Search
+
+  class Show < CommandTemplate
+
+    def initialize
+      super
+
+      @n_args = 1
+    end # def initialize
+
+    def parse(parser, argv, opts)
+      opts[:show] ||= {}
+      opts[:show][:mode] = :component
+      parser.banner = sprintf("Usage: %s [global options] show [command options] <prefix> ...", File.basename(__FILE__))
+      parser.separator ""
+      parser.separator "Command options:"
+      parser.on('-p', '--product', 'Displays available product names') {|v| opts[:show][:mode] = :product}
+      parser.on('-c', '--component', 'Displays available component names (default)') {|v| opts[:show][:mode] = :component}
+      parser.on('--anonymous', 'Access to Bugzilla anonymously') {opts[:anonymous] = true}
+
+      super
+    end # def parse
+
+    def do(argv, opts)
+      real_do(argv, opts) do |*result|
+        if opts[:command][:show][:mode] == :product then
+          printf("%s\n", result[0])
+        elsif opts[:command][:show][:mode] == :component then
+          printf("%s:\n", result[0])
+          printf("  %s\n", result[1].join("\n  "))
+        end
+      end
+    end # def do
+
+    private
+
+    def real_do(argv, opts)
+      conf = read_config(opts)
+      conf.freeze
+      argv.each do |prefix|
+        unless conf.include?(prefix) then
+          raise RuntimeError, sprintf("No host information for %s", prefix)
+        end
+
+        info = conf[prefix]
+        host = info[:URL].sub(/\Ahttps?:\/\//, '').sub(/\/\Z/, '')
+        port = info[:URL] =~ /\Ahttps:/ ? 443 : 80
+        login = opts[:command][:anonymous] == true ? nil : info[:User]
+        pass = opts[:command][:anonymous] == true ? nil : info[:Password]
+
+        xmlrpc = Bugzilla::XMLRPC.new(host, port)
+        user = Bugzilla::User.new(xmlrpc)
+        user.session(login, pass) do
+          product = Bugzilla::Product.new(xmlrpc)
+
+          result = product.selectable_products
+
+          result.each do |p, v|
+            if opts[:command][:show][:mode] == :product then
+              yield p
+            elsif opts[:command][:show][:mode] == :component then
+              yield p, v[0]
+            end
+          end
+        end
+      end
+    end # def real_do
+
+  end # class Show
 
 end # module BzConsole
 
