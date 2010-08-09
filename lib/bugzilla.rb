@@ -34,6 +34,63 @@ module Bugzilla
 
 =begin rdoc
 
+=== Bugzilla::Plugin
+
+=end
+
+  module Plugin
+
+=begin rdoc
+
+==== Bugzilla::Plugin::Template
+
+=end
+
+    class Template
+      @@plugins = []
+
+      def initialize
+	@hostname = nil
+      end # def initialize
+
+      attr_reader :hostname
+
+      def Template.inherited(subclass)
+	@@plugins << subclass
+      end # def inherited
+
+      def run(hook, host, *args)
+        @@plugins.each do |k|
+          i = k.new
+          if i.hostname == host || host.nil? then
+            case hook
+            when :parser
+              i.parserhook(*args)
+            when :pre
+              i.prehook(*args)
+            when :post
+              i.posthook(*args)
+            else
+            end
+          end
+        end
+      end # def run
+
+      def parserhook(parser, argv, opts)
+      end # def parserhook
+
+      def prehook(cmd, opts)
+      end # def prehook
+
+      def posthook(cmd, opts)
+      end # def posthook
+
+    end # class Template
+
+  end # module Plugin
+
+=begin rdoc
+
 === Bugzilla::XMLRPC
 
 =end

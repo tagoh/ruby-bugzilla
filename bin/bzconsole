@@ -33,15 +33,17 @@ begin
   gem 'ruby-bugzilla'
 rescue Gem::LoadError
   require File.join(File.dirname(__FILE__), "..", "lib", "bugzilla.rb")
+  $:.push(File.join(File.dirname(__FILE__), "..", "lib"))
 end
 
 module BzConsole
 
   class CommandTemplate
 
-    def initialize
+    def initialize(plugin)
       @n_args = 0
       @defaultyamlfile = File.join(ENV['HOME'], ".bzconsole.yml")
+      @plugin = plugin
     end # def initialize
 
     attr_reader :n_args
@@ -51,12 +53,25 @@ module BzConsole
 
       parser.on('-h', '--help', 'show this message') {|x| opts[:help] = true}
 
+      read_config(opts)
+      @plugin.run(:parser, nil, parser, argv, opts)
+
       parser.order(argv)
     end # def parse
 
     def read_config(opts)
       fname = opts[:config].nil? ? @defaultyamlfile : opts[:config]
-      YAML.load(File.open(fname).read)
+      begin
+        conf = YAML.load(File.open(fname).read)
+      rescue Errno::ENOENT
+        conf = {}
+      end
+      conf.each do |k, v|
+        if v.include?(:Plugin) then
+          load(v[:Plugin])
+        end
+      end
+      conf
     end # def read_config
 
     def do(argv)
@@ -67,7 +82,7 @@ module BzConsole
 
   class Setup < CommandTemplate
 
-    def initialize
+    def initialize(plugin)
       super
 
       @n_args = 0
@@ -93,7 +108,8 @@ module BzConsole
             'RHEL4'=>'Red Hat Enterprise Linux 4',
             'RHEL5'=>'Red Hat Enterprise Linux 5',
             'RHEL6'=>'Red Hat Enterprise Linux 6'
-          }
+          },
+          :Plugin=>"ruby-bugzilla/rhbugzilla.rb"
         },
         "gnbz"=>{
           :Name=>"GNOME Bugzilla",
@@ -114,6 +130,11 @@ module BzConsole
           :Password=>"blahblahblah",
         }
       }
+
+      template.each do |k, v|
+        @plugin.run(:pre, v[:URL].sub(/\Ahttps?:\/\//, '').sub(/\/\Z/, ''), :setup, v)
+      end
+
       fname = opts[:config].nil? ? @defaultyamlfile : opts[:config]
       if File.exist?(fname) then
         raise RuntimeError, ".bzconsole.yml already exists. please remove it first to proceed to the next step."
@@ -128,7 +149,7 @@ module BzConsole
 
   class Getbug < CommandTemplate
 
-    def initialize
+    def initialize(plugin)
       super
 
       @n_args = 1
@@ -208,6 +229,8 @@ module BzConsole
         login = opts[:command][:anonymous] == true ? nil : info[:User]
         pass = opts[:command][:anonymous] == true ? nil : info[:Password]
 
+        @plugin.run(:pre, host, :getbug, opts)
+
         xmlrpc = Bugzilla::XMLRPC.new(host, port)
         user = Bugzilla::User.new(xmlrpc)
         user.session(login, pass) do
@@ -222,6 +245,8 @@ module BzConsole
             result = bug.get_bugs(nnn.split(','), nil)
           end
 
+          @plugin.run(:post, host, :getbug, result)
+
           result.each do |r|
             yield r
           end
@@ -233,7 +258,7 @@ module BzConsole
 
   class Search < CommandTemplate
 
-    def initialize
+    def initialize(plugin)
       super
 
       @n_args = 1
@@ -247,7 +272,6 @@ module BzConsole
       parser.on('--alias=ALIASES', 'filter out the result by the alias') {|v| opts[:query][:alias] ||= []; opts[:query][:alias].push(*v.split(','))}
       parser.on('-a', '--assignee=ASSIGNEES', 'filter out the result by the specific assignees') {|v| opts[:query][:assigned_to] ||= []; opts[:query][:assigned_to].push(*v.split(','))}
       parser.on('--bug=BUGS', 'filter out the result by the specific bug number') {|v| opts[:query][:id] ||= []; opts[:query][:id].push(*v.split(','))}
-      parser.on('--cc=EMAILS', 'filter out the result by Cc in bugs') {|v| opts[:query][:cc] ||= []; opts[:query][:cc].push(*v.split(','))}
       parser.on('-c', '--component=COMPONENTS', 'filter out the result by the specific components') {|v| opts[:query][:component] ||= []; opts[:query][:component].push(*v.split(','))}
       parser.on('--create-time=TIME', 'Searches for bugs that were created at this time or later') {|v| opts[:query][:creation_time] = Time.parse(v)}
       parser.on('--creator=CREATER', 'filter out the result by the specific user who reported bugs') {|v| opts[:query][:creator] ||= []; opts[:query][:creator].push(*v.split(','))}
@@ -264,8 +288,8 @@ module BzConsole
       parser.on('--whiteboard=STRING', 'filter out the result by the specific words in the status whiteboard') {|v| opts[:query][:whiteboard] ||= []; opts[:query][:whiteboard] << v}
       parser.separator ""
       parser.separator "Command options:"
-      parser.on('-s', '--summary', 'Displays bugs summary only') {opts[:summary] = true}
-      parser.on('-d', '--details', 'Displays detailed bugs information') {opts[:details] = true}
+      parser.on('--short-list', 'Displays bugs summary only') {opts[:summary] = true}
+      parser.on('--detailed-list', 'Displays detailed bugs information') {opts[:details] = true}
       parser.on('--anonymous', 'Access to Bugzilla anonymously') {opts[:anonymous] = true}
 
       super
@@ -279,20 +303,20 @@ module BzConsole
                  result['id'] || result['bug_id'],
                  result['product'],
                  result['component'],
-                 result['status'] || result['bug_status'],
-                 result['severity'] || result['bug_severity'],
-                 result['summary'] || result['short_desc'])
+                 result['status'],
+                 result['severity'],
+                 result['summary'])
         elsif opts[:command][:details] == true then
           printf("Bug#%s, %s, %s, %s[%s, %s, %s, %s] %s\n",
-                 result['id'] || result['bug_id'],
+                 result['id'],
                  result['product'],
                  result['assigned_to'],
                  result['component'],
-                 result['status'] || result['bug_status'],
+                 result['status'],
                  result['resolution'],
                  result['priority'],
-                 result['severity'] || result['bug_severity'],
-                 result['summary'] || result['short_desc'])
+                 result['severity'],
+                 result['summary'])
         end
         c += 1
       end
@@ -315,6 +339,8 @@ module BzConsole
         login = opts[:command][:anonymous] == true ? nil : info[:User]
         pass = opts[:command][:anonymous] == true ? nil : info[:Password]
 
+        @plugin.run(:pre, host, :search, opts)
+
         xmlrpc = Bugzilla::XMLRPC.new(host, port)
         user = Bugzilla::User.new(xmlrpc)
         user.session(login, pass) do
@@ -322,21 +348,9 @@ module BzConsole
 
           opts[:command][:query][:product].map! {|x| info.include?(:ProductAliases) && info[:ProductAliases].include?(x) ? info[:ProductAliases][x] : x} if opts[:command][:query].include?(:product)
 
-          # XXX: maybe RH bugzilla specific hack. need a general way to deal with the special case.
-          opts[:command][:query][:bug_status] = opts[:command][:query][:status] if opts[:command][:query].include?(:status)
-          opts[:command][:query][:bug_id] = opts[:command][:query][:id] if opts[:command][:query].include?(:id)
-          opts[:command][:query][:bug_severity] = opts[:command][:query][:severity] if opts[:command][:query].include?(:severity)
-          opts[:command][:query][:short_desc] = opts[:command][:query][:summary] if opts[:command][:query].include?(:summary)
-          if opts[:command][:query].include?(:cc) then
-            i = 1
-            opts[:command][:query][:cc].each do |e|
-              opts[:command][:query][eval(":emailcc#{i}")] = 1
-              opts[:command][:query][eval(":emailtype#{i}")] = :substring
-              opts[:command][:query][eval(":email#{i}")] = e
-            end
-          end
-
           result = bug.search(opts[:command][:query])
+
+          @plugin.run(:post, host, :search, result)
 
           if result.include?('bugs') then
             result['bugs'].each do |r|
@@ -351,7 +365,7 @@ module BzConsole
 
   class Show < CommandTemplate
 
-    def initialize
+    def initialize(plugin)
       super
 
       @n_args = 1
@@ -397,12 +411,16 @@ module BzConsole
         login = opts[:command][:anonymous] == true ? nil : info[:User]
         pass = opts[:command][:anonymous] == true ? nil : info[:Password]
 
+        @plugin.run(:pre, host, :show, opts)
+
         xmlrpc = Bugzilla::XMLRPC.new(host, port)
         user = Bugzilla::User.new(xmlrpc)
         user.session(login, pass) do
           product = Bugzilla::Product.new(xmlrpc)
 
           result = product.selectable_products
+
+          @plugin.run(:post, host, :show, result)
 
           products = result.keys.sort
           products.each do |p|
@@ -437,10 +455,12 @@ if $0 == __FILE__ then
 
       subargv = opt.order(ARGV);
 
+      command = subargv[0]
+
       if subargv.length > 0 then
-	n = cmds.index(subargv[0])
+	n = cmds.index(command)
         unless n.nil? then
-          opts[:instance] = eval("BzConsole::#{cmds[n].capitalize}.new")
+          opts[:instance] = eval("BzConsole::#{cmds[n].capitalize}.new(Bugzilla::Plugin::Template.new)")
           subargv = opts[:instance].parse(opt, subargv[1..-1], opts[:command])
         else
           STDERR.printf("E: Unknown command: %s\n", subargv[0])
@@ -453,7 +473,7 @@ if $0 == __FILE__ then
         opt.separator sprintf("  %s", cmds.join(' '))
       end
 
-      if opts[:instance].nil? && ARGV.length == 0 ||
+      if opts[:instance].nil? && subargv.length == 0 ||
           opts[:help] == true ||
           subargv.length < opts[:instance].n_args then
         puts opt.help
