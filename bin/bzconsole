@@ -339,7 +339,7 @@ module BzConsole
         login = opts[:command][:anonymous] == true ? nil : info[:User]
         pass = opts[:command][:anonymous] == true ? nil : info[:Password]
 
-        @plugin.run(:pre, host, :search, opts)
+        @plugin.run(:pre, host, :search, opts[:command][:query])
 
         xmlrpc = Bugzilla::XMLRPC.new(host, port)
         user = Bugzilla::User.new(xmlrpc)

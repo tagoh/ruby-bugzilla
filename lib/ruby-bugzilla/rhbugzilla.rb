@@ -50,35 +50,35 @@ module Bugzilla
         when :search
           extra_field = 0
 
-          if opts[:command][:query].include?(:status) then
-            opts[:command][:query][:bug_status] = opts[:command][:query][:status]
-            opts[:command][:query].delete(:status)
+          if opts.include?(:status) then
+            opts[:bug_status] = opts[:status]
+            opts.delete(:status)
           end
-          if opts[:command][:query].include?(:id) then
-            opts[:command][:query][:bug_id] = opts[:command][:query][:id]
-            opts[:command][:query].delete(:id)
+          if opts.include?(:id) then
+            opts[:bug_id] = opts[:id]
+            opts.delete(:id)
           end
-          if opts[:command][:query].include?(:severity)
-            opts[:command][:query][:bug_severity] = opts[:command][:query][:severity]
+          if opts.include?(:severity)
+            opts[:bug_severity] = opts[:severity]
           end
-          if opts[:command][:query].include?(:summary) then
-            opts[:command][:query][:short_desc] = opts[:command][:query][:summary]
-            opts[:command][:query].delete(:summary)
+          if opts.include?(:summary) then
+            opts[:short_desc] = opts[:summary]
+            opts.delete(:summary)
           end
-          if opts[:command][:query].include?(:cc) then
+          if opts.include?(:cc) then
             i = 1
-            opts[:command][:query][:cc].each do |e|
-              opts[:command][:query][eval(":emailcc#{i}")] = 1
-              opts[:command][:query][eval(":emailtype#{i}")] = :substring
-              opts[:command][:query][eval(":email#{i}")] = e
+            opts[:cc].each do |e|
+              opts[eval(":emailcc#{i}")] = 1
+              opts[eval(":emailtype#{i}")] = :substring
+              opts[eval(":email#{i}")] = e
             end
-            opts[:command][:query].delete(:cc)
+            opts.delete(:cc)
           end
-          if opts[:command][:query].include?(:creation_time) then
-            opts[:command][:query][sprintf("field0-%d-0", extra_field)] = :creation_ts
-            opts[:command][:query][sprintf("type0-%d-0", extra_field)] = :greaterthan
-            opts[:command][:query][sprintf("value0-%d-0", extra_field)] = opts[:command][:query][:creation_time]
-            opts[:command][:query].delete(:creation_time)
+          if opts.include?(:creation_time) then
+            opts[sprintf("field0-%d-0", extra_field)] = :creation_ts
+            opts[sprintf("type0-%d-0", extra_field)] = :greaterthan
+            opts[sprintf("value0-%d-0", extra_field)] = opts[:creation_time]
+            opts.delete(:creation_time)
           end
         else
         end
