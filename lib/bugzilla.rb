@@ -344,15 +344,18 @@ See http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Product.htm
     end # def _get_accessible_products
 
     def _get(cmd, ids, *args)
-      if ids.kind_of?(Hash) && !ids.include?(:ids) then
-        raise ArgumentError, "Invalid parameter"
+      params = {}
+
+      if ids.kind_of?(Hash) then
+        raise ArgumentError, sprintf("Invalid parameter: %s", ids.inspect) unless ids.include?('ids')
+        params[:ids] = ids['ids']
       elsif ids.kind_of?(Array) then
-	ids = {'ids'=>ids}
+	params[:ids] = ids
       else
-        ids = {'ids'=>[ids]}
+        params[:ids] = [ids]
       end
 
-      @iface.call(cmd, ids)
+      @iface.call(cmd, params)
     end # def _get
 
   end # class Product
