@@ -708,7 +708,7 @@ Raw Bugzilla API to log out the user.
       @iface.call(cmd,args[0])
     end # def _login
 
-    def __logout(cmd, *args)
+    def _logout(cmd, *args)
       @iface.call(cmd)
     end # def _logout
 
