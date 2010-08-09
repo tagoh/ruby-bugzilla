@@ -88,6 +88,12 @@ module BzConsole
           :URL=>"https://bugzilla.redhat.com/",
           :User=>"account@example.com",
           :Password=>"blahblahblah",
+          :ProductAliases=>{
+            'RHEL3'=>'Red Hat Enterprise Linux 3',
+            'RHEL4'=>'Red Hat Enterprise Linux 4',
+            'RHEL5'=>'Red Hat Enterprise Linux 5',
+            'RHEL6'=>'Red Hat Enterprise Linux 6'
+          }
         },
         "gnbz"=>{
           :Name=>"GNOME Bugzilla",
@@ -310,6 +316,9 @@ module BzConsole
         user.session(login, pass) do
           bug = Bugzilla::Bug.new(xmlrpc)
 
+          opts[:command][:query][:product].map! {|x| info.include?(:ProductAliases) && info[:ProductAliases].include?(x) ? info[:ProductAliases][x] : x}
+p opts
+exit
           result = bug.search(opts[:command][:query])
 
           if result.include?('bugs') then
@@ -378,11 +387,12 @@ module BzConsole
 
           result = product.selectable_products
 
-          result.each do |p, v|
+          products = result.keys.sort
+          products.each do |p|
             if opts[:command][:show][:mode] == :product then
               yield p
             elsif opts[:command][:show][:mode] == :component then
-              yield p, v[0]
+              yield p, result[p][0].sort
             end
           end
         end
