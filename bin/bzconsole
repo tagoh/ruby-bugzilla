@@ -25,6 +25,7 @@ require 'time'
 require 'yaml'
 require 'rubygems'
 require 'pp'
+require 'gruff'
 
 
 $KCODE = 'u'
@@ -435,6 +436,223 @@ module BzConsole
     end # def real_do
 
   end # class Show
+
+  class Metrics < CommandTemplate
+
+    def initialize(plugin)
+      super
+
+      @n_args = 1
+    end # def initialize
+
+    def parse(parser, argv, opts)
+      opts[:metrics] = {}
+      opts[:query] = {}
+      opts[:metrics][:output] = 'bz-metrics.png'
+
+      parser.banner = sprintf("Usage: %s [global options] metrics [command options] <prefix> ...", File.basename(__FILE__))
+      parser.separator ""
+      parser.separator "Search options:"
+      parser.on('--alias=ALIASES', 'filter out the result by the alias') {|v| opts[:query][:alias] ||= []; opts[:query][:alias].push(*v.split(','))}
+      parser.on('-a', '--assignee=ASSIGNEES', 'filter out the result by the specific assignees') {|v| opts[:query][:assigned_to] ||= []; opts[:query][:assigned_to].push(*v.split(','))}
+      parser.on('--bug=BUGS', 'filter out the result by the specific bug number') {|v| opts[:query][:id] ||= []; opts[:query][:id].push(*v.split(','))}
+      parser.on('-c', '--component=COMPONENTS', 'filter out the result by the specific components') {|v| opts[:query][:component] ||= []; opts[:query][:component].push(*v.split(','))}
+      parser.on('--creator=CREATER', 'filter out the result by the specific user who reported bugs') {|v| opts[:query][:creator] ||= []; opts[:query][:creator].push(*v.split(','))}
+      parser.on('--op-sys=NAMES', 'filter out the result by the operating system') {|v| opts[:query][:op_sys] ||= []; opts[:query][:op_sys].push(*v.split(','))}
+      parser.on('--platform=PLATFORMS', 'filter out the result by the platform') {|v| opts[:query][:platform] ||= []; opts[:query][:platform].push(*v.split(','))}
+      parser.on('--priority=PRIORITY', 'filter out the result by the priority') {|v| opts[:query][:priority] ||= []; opts[:query][:priority].push(*v.split(','))}
+      parser.on('-p', '--product=PRODUCTS', 'filter out the result by the specific products') {|v| opts[:query][:product] ||= []; opts[:query][:product].push(*v.split(','))}
+      parser.on('--resolution=RESOLUSIONS', 'filter out the result by the resolusions') {|v| opts[:query][:resolution] ||= []; opts[:query][:resolusion].push(*v.split(','))}
+      parser.on('--severity=SEVERITY', 'filter out the result by the severity') {|v| opts[:query][:severity] ||= []; opts[:query][:severity].push(*v.split(','))}
+      parser.on('--summary=SUMMARY', 'filter out the result by the summary') {|v| opts[:query][:summary] ||= []; opts[:query][:summary] << v}
+      parser.on('--milestone=MILESTONE', 'filter out the result by the target milestone') {|v| opts[:query][:target_milestone] ||= []; opts[:query][:target_milestone].push(*v.split(','))}
+      parser.on('--whiteboard=STRING', 'filter out the result by the specific words in the status whiteboard') {|v| opts[:query][:whiteboard] ||= []; opts[:query][:whiteboard] << v}
+      parser.separator ""
+      parser.separator "Command options:"
+      parser.on('-t', '--title=TITLE', 'add TITLE to the graph') {|v| opts[:metrics][:title] = v}
+      parser.on('--begin-date=DATE', 'generate the graph since the beginning of month of DATE.') {|v| x = Time.parse(v); opts[:metrics][:begin_date] = Time.utc(x.year, x.month, 1, 0, 0, 0)}
+      parser.on('--end-date=DATE', 'generate the graph until the end of month of DATE.') {|v| x = Time.parse(v); opts[:metrics][:end_date] = Time.utc(x.year, x.month + 1, 1, 0, 0, 0) - 1}
+      parser.on('-o', '--output=FILE', 'generate the graph to FILE') {|v| opts[:metrics][:output] = v}
+      parser.on('--anonymous', 'access to Bugzilla anonymously') {|v| opts[:anonymous] = true}
+
+      super
+    end # def parse
+
+    def do(argv, opts)
+      data = {
+        :label=>[],
+        'NEW'=>[],
+        'ASSIGNED'=>[],
+        'MODIFIED'=>[],
+        'ON_QA'=>[],
+        'CLOSED'=>[],
+        'OPEN'=>[]
+      }
+      real_do(argv, opts) do |t, new, assigned, modified, on_qa, closed, open|
+        printf("%s, new: %d, assigned: %d, modified %d, on_qa %d, closed %d / open %d\n",
+               t.strftime("%Y-%m"), new, assigned, modified, on_qa, closed, open)
+        data['NEW'] << new
+        data['ASSIGNED'] << assigned
+        data['MODIFIED'] << modified
+        data['ON_QA'] << on_qa
+        data['CLOSED'] << closed
+        data['OPEN'] << open
+        data[:label] << t.strftime("%Y/%m")
+      end
+
+      timeline = data[:label]
+      data.delete(:label)
+      def timeline.to_hash
+	ret = {}
+        (0..self.length-1).each do |i|
+          ret[i] = self[i]
+        end
+        ret
+      end # def timeline.to_hash
+
+      # output the trend graph
+      g = Gruff::Line.new
+      g.title = sprintf("Trend: %s", opts[:command][:metrics][:title])
+      g.labels = timeline.to_hash
+      data.each do |k, v|
+        next unless k == 'NEW' || k == 'OPEN' || k == 'CLOSED'
+        g.data(k, v)
+      end
+      g.write(sprintf("trend-%s", opts[:command][:metrics][:output]))
+
+      # output the activity graph
+      g = Gruff::StackedBar.new
+      g.title = sprintf("Activity: %s", opts[:command][:metrics][:title])
+      g.labels = timeline.to_hash
+      g.data('Resolved', data['CLOSED'])
+      x = []
+      (0..data['ASSIGNED'].length-1).each do |i|
+        x[i] = data['ASSIGNED'][i] + data['MODIFIED'][i] + data['ON_QA'][i]
+      end
+      g.data('Unresolved', x)
+      a = []
+      (0..data['OPEN'].length-1).each do |i|
+        a[i] = data['OPEN'][i] - x[i]
+      end
+      g.data('non-activity bugs', a)
+      g.write(sprintf("activity-%s", opts[:command][:metrics][:output]))
+    end # def do
+
+    private
+
+    def real_do(argv, opts)
+      conf = read_config(opts)
+      conf.freeze
+      argv.each do |prefix|
+        unless conf.include?(prefix) then
+          raise RuntimeError, sprintf("No host information for %s", prefix)
+        end
+
+        info = conf[prefix]
+        host = info[:URL].sub(/\Ahttps?:\/\//, '').sub(/\/\Z/, '')
+        port = info[:URL] =~ /\Ahttps:/ ? 443 : 80
+        login = opts[:command][:anonymous] == true ? nil : info[:User]
+        pass = opts[:command][:anonymous] == true ? nil : info[:Password]
+
+        xmlrpc = Bugzilla::XMLRPC.new(host, port)
+        user = Bugzilla::User.new(xmlrpc)
+        user.session(login, pass) do
+          bug = Bugzilla::Bug.new(xmlrpc)
+
+          opts[:command][:query][:product].map! {|x| info.include?(:ProductAliases) && info[:ProductAliases].include?(x) ? info[:ProductAliases][x] : x} if opts[:command][:query].include?(:product)
+
+          ts = opts[:command][:metrics][:begin_date] || Time.utc(Time.new.year, 1, 1)
+          te = opts[:command][:metrics][:end_date] || Time.utc(Time.new.year+1, 1, 1) - 1
+
+          searchopts = opts[:command][:query].clone
+
+          @plugin.run(:pre, host, :metrics, searchopts, opts[:metrics])
+
+          if searchopts == opts[:command][:query] then
+            raise NoMethodError, "No method to deal with the query monthly"
+          end
+
+          while ts < te do
+            searchopts = opts[:command][:query].clone
+
+            # don't rely on the status to deal with NEW bugs.
+            # unable to estimate the case bugs closed quickly
+            searchopts[:creation_time] = [ts, Time.utc(ts.year, ts.month + 1, 1) - 1]
+
+            @plugin.run(:pre, host, :metrics, searchopts)
+
+            result = bug.search(searchopts)
+
+            @plugin.run(:post, host, :search, result)
+
+            new = result.include?('bugs') ? result['bugs'].length : 0
+
+            # for open bugs
+            # what we are interested in here would be how many bugs still keeps open.
+            searchopts = opts[:command][:query].clone
+            searchopts[:last_change_time] = [ts, Time.utc(ts.year, ts.month + 1, 1) - 1]
+            searchopts[:status] = '__open__'
+
+            @plugin.run(:pre, host, :metrics, searchopts)
+
+            result = bug.search(searchopts)
+
+            @plugin.run(:post, host, :search, result)
+
+            assigned = result.include?('bugs') ? result['bugs'].map{|x| x['status'] == 'ASSIGNED' ? x : nil}.compact.length : 0
+            modified = result.include?('bugs') ? result['bugs'].map{|x| x['status'] == 'MODIFIED' ? x : nil}.compact.length : 0
+            on_qa = result.include?('bugs') ? result['bugs'].map{|x| x['status'] == 'ON_QA' ? x : nil}.compact.length : 0
+
+            # send a separate query for closed.
+            # just counting CLOSED the above is meaningless.
+            # what we are interested in here would be how much bugs are
+            # actually closed, but not how many closed bugs one worked on.
+            searchopts = opts[:command][:query].clone
+            searchopts[:last_change_time] = [ts, Time.utc(ts.year, ts.month + 1, 1) - 1]
+            searchopts[:status] = 'CLOSED'
+
+            @plugin.run(:pre, host, :metrics, searchopts)
+
+            result = bug.search(searchopts)
+
+            @plugin.run(:post, host, :search, result)
+
+            closed = result.include?('bugs') ? result['bugs'].length : 0
+
+            # obtain the information for open bugs that closed now
+            searchopts = opts[:command][:query].clone
+            searchopts[:status] = 'CLOSED'
+            searchopts[:metrics_closed_after] = Time.utc(ts.year, ts.month + 1, 1)
+
+            @plugin.run(:pre, host, :metrics, searchopts)
+
+            result = bug.search(searchopts)
+
+            @plugin.run(:post, host, :search, result)
+
+            open_bugs = result.include?('bugs') ? result['bugs'].length : 0
+
+            # obtain the information for open bugs
+            searchopts = opts[:command][:query].clone
+            searchopts[:metrics_not_closed] = Time.utc(ts.year, ts.month + 1, 1) - 1
+
+            @plugin.run(:pre, host, :metrics, searchopts)
+
+            result = bug.search(searchopts)
+
+            @plugin.run(:post, host, :search, result)
+
+            open_bugs += result.include?('bugs') ? result['bugs'].length : 0
+
+            yield ts, new, assigned, modified, on_qa, closed, open_bugs
+
+            ts = Time.utc(ts.year, ts.month + 1, 1)
+          end
+        end
+      end
+    end # def real_do
+
+  end # class Metrics
 
 end # module BzConsole
 
