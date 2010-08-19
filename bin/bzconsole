@@ -449,6 +449,7 @@ module BzConsole
       opts[:metrics] = {}
       opts[:query] = {}
       opts[:metrics][:output] = 'bz-metrics.png'
+      opts[:metrics][:x_coordinate] = :monthly
 
       parser.banner = sprintf("Usage: %s [global options] metrics [command options] <prefix> ...", File.basename(__FILE__))
       parser.separator ""
@@ -474,6 +475,8 @@ module BzConsole
       parser.on('--end-date=DATE', 'generate the graph until the end of month of DATE.') {|v| x = Time.parse(v); opts[:metrics][:end_date] = Time.utc(x.year, x.month + 1, 1, 0, 0, 0) - 1}
       parser.on('-o', '--output=FILE', 'generate the graph to FILE') {|v| opts[:metrics][:output] = v}
       parser.on('--anonymous', 'access to Bugzilla anonymously') {|v| opts[:anonymous] = true}
+      parser.on('--weekly', 'genereate the graph with weekly X-coordinate') {|v| opts[:metrics][:x_coordinate] = :weekly}
+      parser.on('--monthly', 'genereate the graph with monthly X-coordinate (default)') {|v| opts[:metrics][:x_coordinate] = :monthly}
 
       super
     end # def parse
@@ -488,16 +491,23 @@ module BzConsole
         'CLOSED'=>[],
         'OPEN'=>[]
       }
+      last_label = nil
       real_do(argv, opts) do |t, new, assigned, modified, on_qa, closed, open|
         printf("%s, new: %d, assigned: %d, modified %d, on_qa %d, closed %d / open %d\n",
-               t.strftime("%Y-%m"), new, assigned, modified, on_qa, closed, open)
+               opts[:command][:metrics][:x_coordinate] == :weekly ? sprintf("week %d", Date.new(t.year, t.month, t.day).cweek) : t.strftime("%Y-%m"), new, assigned, modified, on_qa, closed, open)
         data['NEW'] << new
         data['ASSIGNED'] << assigned
         data['MODIFIED'] << modified
         data['ON_QA'] << on_qa
         data['CLOSED'] << closed
         data['OPEN'] << open
-        data[:label] << t.strftime("%Y/%m")
+        label = t.strftime("%Y/%m")
+        if last_label != label then
+          data[:label] << label
+          last_label = label
+        else
+          data[:label] << nil
+        end
       end
 
       timeline = data[:label]
@@ -505,7 +515,7 @@ module BzConsole
       def timeline.to_hash
 	ret = {}
         (0..self.length-1).each do |i|
-          ret[i] = self[i]
+          ret[i] = self[i] unless self[i].nil?
         end
         ret
       end # def timeline.to_hash
@@ -563,13 +573,22 @@ module BzConsole
 
           ts = opts[:command][:metrics][:begin_date] || Time.utc(Time.new.year, 1, 1)
           te = opts[:command][:metrics][:end_date] || Time.utc(Time.new.year+1, 1, 1) - 1
+          if opts[:command][:metrics][:x_coordinate] == :weekly then
+            # align to the week
+            d = Date.new(ts.year, ts.month, ts.day)
+            ds = Date.commercial(d.year, d.cweek, 1)
+            d = Date.new(te.year, te.month, te.day)
+            de = Date.commercial(d.year, d.cweek, 7)
+            ts = Time.utc(ds.year, ds.month, ds.day)
+            te = Time.utc(de.year, de.month, de.day)
+          end
 
           searchopts = opts[:command][:query].clone
 
           @plugin.run(:pre, host, :metrics, searchopts, opts[:metrics])
 
           if searchopts == opts[:command][:query] then
-            raise NoMethodError, "No method to deal with the query monthly"
+            raise NoMethodError, "No method to deal with the query"
           end
 
           while ts < te do
@@ -577,7 +596,14 @@ module BzConsole
 
             # don't rely on the status to deal with NEW bugs.
             # unable to estimate the case bugs closed quickly
-            searchopts[:creation_time] = [ts, Time.utc(ts.year, ts.month + 1, 1) - 1]
+            if opts[:command][:metrics][:x_coordinate] == :weekly then
+              d = Date.new(ts.year, ts.month, ts.day)
+              de = Date.commercial(d.year, d.cweek, 7)
+              drange = [ts, Time.utc(de.year, de.month, de.day, 23, 59, 59)]
+            else
+              drange = [ts, Time.utc(ts.year, ts.month + 1, 1) - 1]
+            end
+            searchopts[:creation_time] = drange
 
             @plugin.run(:pre, host, :metrics, searchopts)
 
@@ -590,7 +616,7 @@ module BzConsole
             # for open bugs
             # what we are interested in here would be how many bugs still keeps open.
             searchopts = opts[:command][:query].clone
-            searchopts[:last_change_time] = [ts, Time.utc(ts.year, ts.month + 1, 1) - 1]
+            searchopts[:last_change_time] = drange
             searchopts[:status] = '__open__'
 
             @plugin.run(:pre, host, :metrics, searchopts)
@@ -608,7 +634,7 @@ module BzConsole
             # what we are interested in here would be how much bugs are
             # actually closed, but not how many closed bugs one worked on.
             searchopts = opts[:command][:query].clone
-            searchopts[:last_change_time] = [ts, Time.utc(ts.year, ts.month + 1, 1) - 1]
+            searchopts[:last_change_time] = drange
             searchopts[:status] = 'CLOSED'
 
             @plugin.run(:pre, host, :metrics, searchopts)
@@ -622,7 +648,7 @@ module BzConsole
             # obtain the information for open bugs that closed now
             searchopts = opts[:command][:query].clone
             searchopts[:status] = 'CLOSED'
-            searchopts[:metrics_closed_after] = Time.utc(ts.year, ts.month + 1, 1)
+            searchopts[:metrics_closed_after] = drange[1] + 1
 
             @plugin.run(:pre, host, :metrics, searchopts)
 
@@ -634,7 +660,7 @@ module BzConsole
 
             # obtain the information for open bugs
             searchopts = opts[:command][:query].clone
-            searchopts[:metrics_not_closed] = Time.utc(ts.year, ts.month + 1, 1) - 1
+            searchopts[:metrics_not_closed] = drange[1]
 
             @plugin.run(:pre, host, :metrics, searchopts)
 
@@ -646,7 +672,7 @@ module BzConsole
 
             yield ts, new, assigned, modified, on_qa, closed, open_bugs
 
-            ts = Time.utc(ts.year, ts.month + 1, 1)
+            ts = drange[1] + 1
           end
         end
       end
