@@ -13,6 +13,7 @@ begin
     gem.authors = ["Akira TAGOH"]
     #gem.rubyforge_project = "ruby-bugzilla"
     gem.add_development_dependency "rspec", ">= 1.2.9"
+    gem.add_development_dependency "gruff"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
     gem.version = Bugzilla::VERSION
     gem.files = FileList['bin/*', 'lib/**/*.rb', '[A-Z]*', 'test/**/*'].to_a.reject{|x| x =~ /~\Z|#\Z|swp\Z/}
