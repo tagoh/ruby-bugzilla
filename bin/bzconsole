@@ -26,6 +26,7 @@ require 'yaml'
 require 'rubygems'
 require 'pp'
 require 'gruff'
+require 'uri'
 
 
 $KCODE = 'u'
@@ -101,7 +102,7 @@ module BzConsole
       template = {
         "rhbz"=>{
           :Name=>"Red Hat Bugzilla",
-          :URL=>"https://bugzilla.redhat.com/",
+          :URL=>"https://bugzilla.redhat.com",
           :User=>"account@example.com",
           :Password=>"blahblahblah",
           :ProductAliases=>{
@@ -114,19 +115,19 @@ module BzConsole
         },
         "gnbz"=>{
           :Name=>"GNOME Bugzilla",
-          :URL=>"https://bugzilla.gnome.org/",
+          :URL=>"https://bugzilla.gnome.org",
           :User=>"account@example.com",
           :Password=>"blahblahblah",
         },
         "fdobz"=>{
           :Name=>"FreeDesktop Bugzilla",
-          :URL=>"https://bugs.freedesktop.org/",
+          :URL=>"https://bugs.freedesktop.org",
           :User=>"account@example.com",
           :Password=>"blahblahblah",
         },
         "mzbz"=>{
           :Name=>"Mozilla Bugzilla",
-          :URL=>"https://bugzilla.mozilla.org/",
+          :URL=>"https://bugzilla.mozilla.org",
           :User=>"account@example.com",
           :Password=>"blahblahblah",
         }
@@ -225,14 +226,16 @@ module BzConsole
         end
 
         info = conf[prefix]
-        host = info[:URL].sub(/\Ahttps?:\/\//, '').sub(/\/\Z/, '')
-        port = info[:URL] =~ /\Ahttps:/ ? 443 : 80
+        uri = URI.parse(info[:URL])
+        host = uri.host
+        port = uri.port
+        path = uri.path.empty? ? nil : uri.path
         login = opts[:command][:anonymous] == true ? nil : info[:User]
         pass = opts[:command][:anonymous] == true ? nil : info[:Password]
 
         @plugin.run(:pre, host, :getbug, opts)
 
-        xmlrpc = Bugzilla::XMLRPC.new(host, port)
+        xmlrpc = Bugzilla::XMLRPC.new(host, port, path)
         user = Bugzilla::User.new(xmlrpc)
         user.session(login, pass) do
           bug = Bugzilla::Bug.new(xmlrpc)
@@ -335,14 +338,16 @@ module BzConsole
         end
 
         info = conf[prefix]
-        host = info[:URL].sub(/\Ahttps?:\/\//, '').sub(/\/\Z/, '')
-        port = info[:URL] =~ /\Ahttps:/ ? 443 : 80
+        uri = URI.parse(info[:URL])
+        host = uri.host
+        port = uri.port
+        path = uri.path.empty? ? nil : uri.path
         login = opts[:command][:anonymous] == true ? nil : info[:User]
         pass = opts[:command][:anonymous] == true ? nil : info[:Password]
 
         @plugin.run(:pre, host, :search, opts[:command][:query])
 
-        xmlrpc = Bugzilla::XMLRPC.new(host, port)
+        xmlrpc = Bugzilla::XMLRPC.new(host, port, path)
         user = Bugzilla::User.new(xmlrpc)
         user.session(login, pass) do
           bug = Bugzilla::Bug.new(xmlrpc)
@@ -378,6 +383,8 @@ module BzConsole
       parser.banner = sprintf("Usage: %s [global options] show [command options] <prefix> ...", File.basename(__FILE__))
       parser.separator ""
       parser.separator "Command options:"
+      parser.on('-f', '--field', 'Displays available field informations') {|v| opts[:show][:mode] = :field}
+      parser.on('--field-name=NAME', 'Displays NAME field information') {|v| opts[:show][:field] = v}
       parser.on('-p', '--product', 'Displays available product names') {|v| opts[:show][:mode] = :product}
       parser.on('-c', '--component', 'Displays available component names (default)') {|v| opts[:show][:mode] = :component}
       parser.on('--anonymous', 'Access to Bugzilla anonymously') {opts[:anonymous] = true}
@@ -407,28 +414,40 @@ module BzConsole
         end
 
         info = conf[prefix]
-        host = info[:URL].sub(/\Ahttps?:\/\//, '').sub(/\/\Z/, '')
-        port = info[:URL] =~ /\Ahttps:/ ? 443 : 80
+        uri = URI.parse(info[:URL])
+        host = uri.host
+        port = uri.port
+        path = uri.path.empty? ? nil : uri.path
         login = opts[:command][:anonymous] == true ? nil : info[:User]
         pass = opts[:command][:anonymous] == true ? nil : info[:Password]
 
         @plugin.run(:pre, host, :show, opts)
 
-        xmlrpc = Bugzilla::XMLRPC.new(host, port)
+        xmlrpc = Bugzilla::XMLRPC.new(host, port, path)
         user = Bugzilla::User.new(xmlrpc)
         user.session(login, pass) do
-          product = Bugzilla::Product.new(xmlrpc)
+          if opts[:command][:show][:mode] == :field then
+            bug = Bugzilla::Bug.new(xmlrpc)
 
-          result = product.selectable_products
+            result = bug.fields(opts[:command][:show][:field])
 
-          @plugin.run(:post, host, :show, result)
+            @plugin.run(:post, host, :show, result)
 
-          products = result.keys.sort
-          products.each do |p|
-            if opts[:command][:show][:mode] == :product then
-              yield p
-            elsif opts[:command][:show][:mode] == :component then
-              yield p, result[p][0].sort
+            pp result
+          else
+            product = Bugzilla::Product.new(xmlrpc)
+
+            result = product.selectable_products
+
+            @plugin.run(:post, host, :show, result)
+
+            products = result.keys.sort
+            products.each do |p|
+              if opts[:command][:show][:mode] == :product then
+                yield p
+              elsif opts[:command][:show][:mode] == :component then
+                yield p, result[p][0].sort
+              end
             end
           end
         end
@@ -559,12 +578,14 @@ module BzConsole
         end
 
         info = conf[prefix]
-        host = info[:URL].sub(/\Ahttps?:\/\//, '').sub(/\/\Z/, '')
-        port = info[:URL] =~ /\Ahttps:/ ? 443 : 80
+        uri = URI.parse(info[:URL])
+        host = uri.host
+        port = uri.port
+        path = uri.path.empty? ? nil : uri.path
         login = opts[:command][:anonymous] == true ? nil : info[:User]
         pass = opts[:command][:anonymous] == true ? nil : info[:Password]
 
-        xmlrpc = Bugzilla::XMLRPC.new(host, port)
+        xmlrpc = Bugzilla::XMLRPC.new(host, port, path)
         user = Bugzilla::User.new(xmlrpc)
         user.session(login, pass) do
           bug = Bugzilla::Bug.new(xmlrpc)
