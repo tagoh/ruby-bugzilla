@@ -99,13 +99,14 @@ module Bugzilla
 
 =begin rdoc
 
-==== Bugzilla::XMLRPC#new(server, port = 443)
+==== Bugzilla::XMLRPC#new(host, port = 443, path = '/xmlrpc.cgi')
 
 =end
 
-    def initialize(server, port = 443)
+    def initialize(host, port = 443, path = '/xmlrpc.cgi')
+      path ||= '/xmlrpc.cgi'
       use_ssl = port == 443 ? true : false
-      @xmlrpc = ::XMLRPC::Client.new(server, '/xmlrpc.cgi', port, nil, nil, nil, nil, use_ssl, 60)
+      @xmlrpc = ::XMLRPC::Client.new(host, path, port, nil, nil, nil, nil, use_ssl, 60)
     end # def initialize
 
 =begin rdoc
