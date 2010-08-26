@@ -32,8 +32,8 @@ require 'uri'
 $KCODE = 'u'
 
 begin
-  gem 'ruby-bugzilla'
-rescue Gem::LoadError
+  require 'bugzilla'
+rescue LoadError
   require File.join(File.dirname(__FILE__), "..", "lib", "bugzilla.rb")
   $:.push(File.join(File.dirname(__FILE__), "..", "lib"))
 end
@@ -703,49 +703,47 @@ module BzConsole
 
 end # module BzConsole
 
-if $0 == __FILE__ then
-  begin
-    opts = {}
-    opts[:command] = {}
-    subargv = []
+begin
+  opts = {}
+  opts[:command] = {}
+  subargv = []
 
-    o = ARGV.options do |opt|
-      opt.banner = sprintf("Usage: %s [global options] <command> ...", File.basename(__FILE__))
-      opt.separator ""
-      opt.separator "Global options:"
-      opt.on('-c', '--config=FILE', 'read FILE as the configuration file.') {|v| opts[:config] = v}
-      opt.on('-h', '--help', 'show this message') {|x| opts[:help] = true}
+  o = ARGV.options do |opt|
+    opt.banner = sprintf("Usage: %s [global options] <command> ...", File.basename(__FILE__))
+    opt.separator ""
+    opt.separator "Global options:"
+    opt.on('-c', '--config=FILE', 'read FILE as the configuration file.') {|v| opts[:config] = v}
+    opt.on('-h', '--help', 'show this message') {|x| opts[:help] = true}
 
-      cmds = BzConsole.constants.sort.map {|x| (k = eval("BzConsole::#{x}")).class == Class && x != "CommandTemplate" ? x.downcase : nil}.compact
+    cmds = BzConsole.constants.sort.map {|x| (k = eval("BzConsole::#{x}")).class == Class && x != "CommandTemplate" ? x.downcase : nil}.compact
 
-      subargv = opt.order(ARGV);
+    subargv = opt.order(ARGV);
 
-      command = subargv[0]
+    command = subargv[0]
 
-      if subargv.length > 0 then
-	n = cmds.index(command)
-        unless n.nil? then
-          opts[:instance] = eval("BzConsole::#{cmds[n].capitalize}.new(Bugzilla::Plugin::Template.new)")
-          subargv = opts[:instance].parse(opt, subargv[1..-1], opts[:command])
-        else
-          STDERR.printf("E: Unknown command: %s\n", subargv[0])
-          STDERR.printf("   Available commands: %s\n", cmds.join(' '))
-          exit 1
-        end
+    if subargv.length > 0 then
+      n = cmds.index(command)
+      unless n.nil? then
+        opts[:instance] = eval("BzConsole::#{cmds[n].capitalize}.new(Bugzilla::Plugin::Template.new)")
+        subargv = opts[:instance].parse(opt, subargv[1..-1], opts[:command])
       else
-        opt.separator ""
-        opt.separator "Available commands:"
-        opt.separator sprintf("  %s", cmds.join(' '))
+        STDERR.printf("E: Unknown command: %s\n", subargv[0])
+        STDERR.printf("   Available commands: %s\n", cmds.join(' '))
+        exit 1
       end
-
-      if opts[:instance].nil? && subargv.length == 0 ||
-          opts[:help] == true ||
-          subargv.length < opts[:instance].n_args then
-        puts opt.help
-        exit
-      end
+    else
+      opt.separator ""
+      opt.separator "Available commands:"
+      opt.separator sprintf("  %s", cmds.join(' '))
     end
 
-    opts[:instance].do(subargv, opts)
+    if opts[:instance].nil? && subargv.length == 0 ||
+        opts[:help] == true ||
+        subargv.length < opts[:instance].n_args then
+      puts opt.help
+      exit
+    end
   end
+
+  opts[:instance].do(subargv, opts)
 end
