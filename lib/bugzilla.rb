@@ -30,7 +30,7 @@ require 'xmlrpc/client'
 
 module Bugzilla
 
-  VERSION = "0.2.1"
+  VERSION = "0.3.0"
 
 =begin rdoc
 
