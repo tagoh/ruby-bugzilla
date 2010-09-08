@@ -380,11 +380,12 @@ module BzConsole
     def parse(parser, argv, opts)
       opts[:show] ||= {}
       opts[:show][:mode] = :component
+      opts[:show][:field] = []
       parser.banner = sprintf("Usage: %s [global options] show [command options] <prefix> ...", File.basename(__FILE__))
       parser.separator ""
       parser.separator "Command options:"
       parser.on('-f', '--field', 'Displays available field informations') {|v| opts[:show][:mode] = :field}
-      parser.on('--field-name=NAME', 'Displays NAME field information') {|v| opts[:show][:field] = v}
+      parser.on('--field-name=NAME', 'Displays NAME field information') {|v| opts[:show][:field] << v.split(',')}
       parser.on('-p', '--product', 'Displays available product names') {|v| opts[:show][:mode] = :product}
       parser.on('-c', '--component', 'Displays available component names (default)') {|v| opts[:show][:mode] = :component}
       parser.on('--anonymous', 'Access to Bugzilla anonymously') {opts[:anonymous] = true}
@@ -429,7 +430,7 @@ module BzConsole
           if opts[:command][:show][:mode] == :field then
             bug = Bugzilla::Bug.new(xmlrpc)
 
-            result = bug.fields(opts[:command][:show][:field])
+            result = bug.fields(opts[:command][:show][:field].flatten)
 
             @plugin.run(:post, host, :show, result)
 
