@@ -122,6 +122,26 @@ module Bugzilla
       @xmlrpc.call(cmd, params)
     end # def call
 
+=begin rdoc
+
+==== Bugzilla::XMLRPC#cookie
+
+=end
+
+    def cookie
+      @xmlrpc.cookie
+    end # def cookie
+
+=begin rdoc
+
+==== Bugzilla::XMLRPC#cookie=(val)
+
+=end
+
+    def cookie=(val)
+      @xmlrpc.cookie = val
+    end # def cookie
+
   end # class XMLRPC
 
 =begin rdoc
@@ -733,6 +753,19 @@ Keeps the bugzilla session during doing something in the block.
 =end
 
     def session(user, password)
+      fname = File.join(ENV['HOME'], '.ruby-bugzilla-cookie.yml')
+      if File.exist?(fname) && File.lstat(fname).mode & 0600 == 0600 then
+        conf = YAML.load(File.open(fname).read)
+        host = @iface.instance_variable_get(:@xmlrpc).instance_variable_get(:@host)
+        cookie = conf[host]
+        unless cookie.nil? then
+          @iface.cookie = cookie
+          print "Using cookie\n"
+          yield
+          conf[host] = @iface.cookie
+          File.open(fname, 'w') {|f| f.chmod(0600); f.write(conf.to_yaml)}
+        end
+      end
       if user.nil? || password.nil? then
         yield
       else
@@ -740,6 +773,7 @@ Keeps the bugzilla session during doing something in the block.
         yield
         logout
       end
+      
     end # def session
 
 =begin rdoc

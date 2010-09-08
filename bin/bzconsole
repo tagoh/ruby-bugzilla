@@ -27,6 +27,7 @@ require 'rubygems'
 require 'pp'
 require 'gruff'
 require 'uri'
+require 'highline/import'
 
 
 $KCODE = 'u'
@@ -61,6 +62,12 @@ module BzConsole
       parser.order(argv)
     end # def parse
 
+    def do(argv)
+      raise RuntimeError, sprintf("No implementation for %s", self.class)
+    end # def do
+
+    protected
+
     def read_config(opts)
       fname = opts[:config].nil? ? @defaultyamlfile : opts[:config]
       begin
@@ -69,16 +76,23 @@ module BzConsole
         conf = {}
       end
       conf.each do |k, v|
-        if v.include?(:Plugin) then
+        if v.kind_of?(Hash) && v.include?(:Plugin) then
           load(v[:Plugin])
         end
       end
       conf
     end # def read_config
 
-    def do(argv)
-      raise RuntimeError, sprintf("No implementation for %s", self.class)
-    end # def do
+    def save_config(opts, conf)
+      fname = opts[:config].nil? ? @defaultyamlfile : opts[:config]
+      if File.exist?(fname) then
+        st = File.lstat(fname)
+        if st.mode & 0600 != 0600 then
+          raise RuntimeError, sprintf("The permissions of %s has to be 0600", fname)
+        end
+      end
+      File.open(fname, "w") {|f| f.chmod(0600); f.write(conf.to_yaml)}
+    end # def save_config
 
   end # class CommandTemplate
 
@@ -148,6 +162,58 @@ module BzConsole
     end # def do
 
   end # class Setup
+
+  class Login < CommandTemplate
+
+    def initialize(plugin)
+      super
+
+      @n_args = 1
+    end # def initialize
+
+    def parse(parser, argv, opts)
+      opts[:output] = File.join(ENV['HOME'], '.ruby-bugzilla-cookie.yml')
+      parser.banner = sprintf("Usage: %s [global options] login [command options] <prefix> ...", File.basename(__FILE__))
+      parser.separator ""
+      parser.separator "Command options:"
+      parser.on('-o', '--output=FILE', 'FILE to store the cookie') {|v| opts[:output] = v}
+
+      super
+    end # def parse
+
+    def do(argv, opts)
+      conf = read_config(opts)
+      conf.freeze
+      cconf = read_config({:config=>opts[:command][:output]})
+      argv.each do |prefix|
+        if prefix.nil? then
+          raise ArgumentError, "No prefix to log in"
+        end
+        unless conf.include?(prefix) then
+          raise RuntimeError, sprintf("No host information for %s", prefix)
+        end
+
+        info = conf[prefix]
+        uri = URI.parse(info[:URL])
+        host = uri.host
+        port = uri.port
+        path = uri.path.empty? ? nil : uri.path
+        login = info[:User].nil? ? ask("Bugzilla ID: ") : info[:User]
+        pass = info[:Password].nil? ? ask("Bugzilla password: ") {|q| q.echo = false} : info[:Password]
+
+        xmlrpc = Bugzilla::XMLRPC.new(host, port, path)
+        user = Bugzilla::User.new(xmlrpc)
+        begin
+          result = user.login({'login'=>login, 'password'=>pass, 'remember'=>true})
+          cconf[host] = xmlrpc.cookie
+          save_config({:config=>opts[:command][:output]}, cconf)
+        rescue XMLRPC::FaultException => e
+          printf("E: %s\n", e.message)
+        end
+      end
+    end # def do
+
+   end # class Login
 
   class Getbug < CommandTemplate
 
