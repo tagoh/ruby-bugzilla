@@ -764,6 +764,7 @@ Keeps the bugzilla session during doing something in the block.
           yield
           conf[host] = @iface.cookie
           File.open(fname, 'w') {|f| f.chmod(0600); f.write(conf.to_yaml)}
+          return
         end
       end
       if user.nil? || password.nil? then
