@@ -14,7 +14,7 @@ Gem::Specification.new do |s|
   s.description = %Q{This aims to provide similar features to access to Bugzilla through WebService APIs in Ruby.}
   s.required_rubygems_version = ">= 1.3.6"
 
-  s.add_development_dependency "rspec", ">= 1.2.9"
+  s.add_development_dependency "rspec", "~> 2.0"
   s.add_runtime_dependency "gruff"
   s.add_runtime_dependency "highline"
 
