@@ -18,6 +18,9 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "gruff"
   s.add_runtime_dependency "highline"
 
+  # sems like gruff is missing this one
+  s.add_runtime_dependency "rmagick"
+
   s.add_development_dependency("bundler", [">= 1.0"])
 
   bindir = 'bin'
