@@ -29,15 +29,14 @@ require 'gruff'
 require 'uri'
 require 'highline/import'
 
-
-$KCODE = 'u'
-
 begin
   require 'bugzilla'
 rescue LoadError
-  require File.join(File.dirname(__FILE__), "..", "lib", "bugzilla.rb")
-  $:.push(File.join(File.dirname(__FILE__), "..", "lib"))
+  $:.push(File.join(File.dirname(__FILE__), '..', 'lib'))
+  require 'bugzilla'
 end
+
+$KCODE = 'u'
 
 module BzConsole
 
