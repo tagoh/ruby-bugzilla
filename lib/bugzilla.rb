@@ -453,13 +453,16 @@ have already been filed.
 
     FIELDS_SUMMARY = ["id", "product", "component", "status", "severity", "summary"]
     FIELDS_DETAILS = FIELDS_SUMMARY + ["assigned_to", "internals", "priority", "resolution"]
-    FIELDS_ALL = ["alias", "assigned_to", "component",
-                  "creation_time", "dupe_of",
-                  "external_bugs", "groups", "id",
-                  "internals", "is_open",
-                  "last_change_time", "priority", "product",
-                  "resolution", "severity", "status",
-                  "summary"]
+    FIELDS_ALL = ["alias", "assigned_to", "blocks", "cc", "classification",
+                  "component", "creation_time", "creator", "deadline",
+                  "depends_on", "dupe_of", "estimated_time", "groups",
+                  "id", "is_cc_accessible", "is_confirmed", "is_open",
+                  "is_creator_accessible", "keywords", "last_change_time",
+                  "op_sys", "platform", "priority", "product", "qa_contact",
+                  "remaining_time", "resolution", "see_also", "severity",
+                  "status", "summary", "target_milestone", "update_token",
+                  "url", "version", "whiteboard",
+                  "external_bugs", "internals"]
 
 =begin rdoc
 
