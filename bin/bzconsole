@@ -93,6 +93,16 @@ module BzConsole
       File.open(fname, "w") {|f| f.chmod(0600); f.write(conf.to_yaml)}
     end # def save_config
 
+    private
+
+    def get_proxy(info)
+      uri = info[:Proxy] || ENV["http_proxy"]
+      proxy_uri = uri.nil? ? nil : URI.parse(uri)
+      proxy_host = proxy_uri.nil? ? nil : proxy_uri.host
+      proxy_port = proxy_uri.nil? ? nil : proxy_uri.port
+      return proxy_host, proxy_port
+    end
+
   end # class CommandTemplate
 
   class Setup < CommandTemplate
@@ -199,8 +209,9 @@ module BzConsole
         path = uri.path.empty? ? nil : uri.path
         login = info[:User].nil? ? ask("Bugzilla ID: ") : info[:User]
         pass = info[:Password].nil? ? ask("Bugzilla password: ") {|q| q.echo = false} : info[:Password]
+        proxy_host, proxy_port = get_proxy(info)
 
-        xmlrpc = Bugzilla::XMLRPC.new(host, port, path)
+        xmlrpc = Bugzilla::XMLRPC.new(host, port, path, proxy_host, proxy_port)
         user = Bugzilla::User.new(xmlrpc)
         begin
           result = user.login({'login'=>login, 'password'=>pass, 'remember'=>true})
@@ -297,10 +308,11 @@ module BzConsole
         path = uri.path.empty? ? nil : uri.path
         login = opts[:command][:anonymous] == true ? nil : info[:User]
         pass = opts[:command][:anonymous] == true ? nil : info[:Password]
+        proxy_host, proxy_port = get_proxy(info)
 
         @plugin.run(:pre, host, :getbug, opts)
 
-        xmlrpc = Bugzilla::XMLRPC.new(host, port, path)
+        xmlrpc = Bugzilla::XMLRPC.new(host, port, path, proxy_host, proxy_port)
         user = Bugzilla::User.new(xmlrpc)
         user.session(login, pass) do
           bug = Bugzilla::Bug.new(xmlrpc)
@@ -409,10 +421,11 @@ module BzConsole
         path = uri.path.empty? ? nil : uri.path
         login = opts[:command][:anonymous] == true ? nil : info[:User]
         pass = opts[:command][:anonymous] == true ? nil : info[:Password]
+        proxy_host, proxy_port = get_proxy(info)
 
         @plugin.run(:pre, host, :search, opts[:command][:query])
 
-        xmlrpc = Bugzilla::XMLRPC.new(host, port, path)
+        xmlrpc = Bugzilla::XMLRPC.new(host, port, path, proxy_host, proxy_port)
         user = Bugzilla::User.new(xmlrpc)
         user.session(login, pass) do
           bug = Bugzilla::Bug.new(xmlrpc)
@@ -486,10 +499,11 @@ module BzConsole
         path = uri.path.empty? ? nil : uri.path
         login = opts[:command][:anonymous] == true ? nil : info[:User]
         pass = opts[:command][:anonymous] == true ? nil : info[:Password]
+        proxy_host, proxy_port = get_proxy(info)
 
         @plugin.run(:pre, host, :show, opts)
 
-        xmlrpc = Bugzilla::XMLRPC.new(host, port, path)
+        xmlrpc = Bugzilla::XMLRPC.new(host, port, path, proxy_host, proxy_port)
         user = Bugzilla::User.new(xmlrpc)
         user.session(login, pass) do
           if opts[:command][:show][:mode] == :field then
@@ -650,8 +664,9 @@ module BzConsole
         path = uri.path.empty? ? nil : uri.path
         login = opts[:command][:anonymous] == true ? nil : info[:User]
         pass = opts[:command][:anonymous] == true ? nil : info[:Password]
+        proxy_host, proxy_port = get_proxy(info)
 
-        xmlrpc = Bugzilla::XMLRPC.new(host, port, path)
+        xmlrpc = Bugzilla::XMLRPC.new(host, port, path, proxy_host, proxy_port)
         user = Bugzilla::User.new(xmlrpc)
         user.session(login, pass) do
           bug = Bugzilla::Bug.new(xmlrpc)
