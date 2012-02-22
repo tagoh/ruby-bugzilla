@@ -1,6 +1,8 @@
 require 'rubygems'
 require 'rake'
-require File.join(File.dirname(__FILE__), "lib", "bugzilla.rb")
+require 'bundler'
+
+Bundler::GemHelper.install_tasks
 
 require 'rspec/core/rake_task'
 RSpec::Core::RakeTask.new(:spec) do |spec|
@@ -24,6 +26,7 @@ Rake::RDocTask.new do |rdoc|
   rdoc.rdoc_files.include('lib/**/*.rb')
 end
 
+=begin
 task :build do
   system "gem build ruby-bugzilla.gemspec"
 end
@@ -31,3 +34,4 @@ end
 task :install => :build do
   system "sudo gem install ruby-bugzilla-#{Bugzilla::VERSION}.gem"
 end
+=end
