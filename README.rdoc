@@ -11,7 +11,7 @@ APIs are available:
 
 == Copyright
 
-Copyright (c) 2010 Red Hat, Inc. See COPYING for details.
+Copyright (c) 2010-2012 Red Hat, Inc. See COPYING for details.
 
 == Authors
 

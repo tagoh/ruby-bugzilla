@@ -1,5 +1,5 @@
 # rhbugzilla.rb
-# Copyright (C) 2010 Red Hat, Inc.
+# Copyright (C) 2010-2012 Red Hat, Inc.
 #
 # Authors:
 #   Akira TAGOH  <tagoh@redhat.com>
