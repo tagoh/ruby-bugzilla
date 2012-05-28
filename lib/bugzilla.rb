@@ -103,10 +103,10 @@ module Bugzilla
 
 =end
 
-    def initialize(host, port = 443, path = '/xmlrpc.cgi', proxy_host = nil, proxy_port = nil)
+    def initialize(host, port = 443, path = '/xmlrpc.cgi', proxy_host = nil, proxy_port = nil, timeout = 60)
       path ||= '/xmlrpc.cgi'
       use_ssl = port == 443 ? true : false
-      @xmlrpc = ::XMLRPC::Client.new(host, path, port, proxy_host, proxy_port, nil, nil, use_ssl, 60)
+      @xmlrpc = ::XMLRPC::Client.new(host, path, port, proxy_host, proxy_port, nil, nil, use_ssl, timeout)
     end # def initialize
 
 =begin rdoc
