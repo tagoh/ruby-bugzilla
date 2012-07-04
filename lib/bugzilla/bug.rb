@@ -294,8 +294,31 @@ criteria.
       @iface.call(cmd, args[0])
     end # def _search
 
-    def __create(cmd, *args)
-      # FIXME
+    def _create(cmd, *args)
+      raise ArgumentError, "Invalid parameters" unless args[0].kind_of?(Hash)
+
+      required_fields = [:product, :component, :summary, :version]
+      defaulted_fields = [:description, :op_sys, :platform, :priority, :severity]
+
+      res = check_version("3.0.4")
+      unless res[0] then
+	required_fields.push(*defaulted_fields)
+      end
+      required_fields.each do |f|
+        raise ArgumentError, sprintf("Required fields isn't given: %s", f) unless args[0].include?(f)
+      end
+      res = check_version(4.0)
+      unless res[0] then
+        raise ArgumentError, "groups field isn't available in this bugzilla" if args[0].include?("groups")
+        raise ArgumentError, "comment_is_private field isn't available in this bugzilla" if args[0].include?("comment_is_private")
+      else
+        if args[0].include?("commentprivacy") then
+          args[0]["comment_is_private"] = args[0]["commentprivacy"]
+          args[0].delete("commentprivacy")
+        end
+      end
+
+      @iface.call(cmd, args[0])
     end # def _create
 
     def __add_attachment(cmd, *args)

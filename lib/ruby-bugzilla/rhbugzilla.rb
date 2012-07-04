@@ -44,7 +44,7 @@ module Bugzilla
 	parser.separator ""
         parser.separator "RH Bugzilla specific options:"
         parser.on('--cc=EMAILS', 'filter out the result by Cc in bugs') {|v| opts[:query][:cc] ||= []; opts[:query][:cc].push(*v.split(','))}
-        parser.on('--version=VERSION', 'filter out the result by the version in bugs') {|v| opts[:query][:version] ||= []; opts[:query][:version].push(*v.split(','))}
+        parser.on('--filterversion=VERSION', 'filter out the result by the version in bugs') {|v| opts[:query][:version] ||= []; opts[:query][:version].push(*v.split(','))}
       end # def parserhook
 
       def prehook(*args)

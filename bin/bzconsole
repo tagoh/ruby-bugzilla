@@ -792,6 +792,89 @@ module BzConsole
 
   end # class Metrics
 
+  class Newbug < CommandTemplate
+
+    def initialize(plugin)
+      super
+
+      @n_args = 1
+    end # def initialize
+
+    def parse(parser, argv, opts)
+      opts[:newbug] = {}
+
+      parser.banner = sprintf("Usage: %s [global options] newbug [command options] <prefix>", File.basename(__FILE__))
+      parser.separator ""
+      parser.separator "Options:"
+      parser.on('-p', '--product=PRODUCT', 'The name of the product the bug is being filed against') {|v| opts[:newbug][:product] = v}
+      parser.on('-c', '--component=COMPONENT', 'The name of the component in PRODUCT') {|v| opts[:newbug][:component] = v}
+      parser.on('-s', '--summary=SUMMARY', 'A brief description of the bug being filed') {|v| opts[:newbug][:summary] = v}
+      parser.on('-v', '--version=VERSION', 'A version of PRODUCT that the bug was found in') {|v| opts[:newbug][:version] = v}
+      parser.on('-d', '--description=DESCRIPTION', 'The initial description for bug') {|v| opts[:newbug][:description] = v}
+      parser.on('--opsys=OPSYS', 'The operating system the bug was discovered on') {|v| opts[:newbug][:op_sys] = v}
+      parser.on('--platform=PLATFORM', 'What type of hardware the bug was experienced on') {|v| opts[:newbug][:platform] = v}
+      parser.on('--priority=PRIORITY', 'What order the bug will be fixed in by the developer') {|v| opts[:newbug][:priority] = v}
+      parser.on('--severity=SEVERITY', 'How severe the bug is') {|v| opts[:newbug][:severity] = v}
+      parser.on('--alias=ALIAS', 'A brief alias for the bug that can be used instead of a bug number') {|v| opts[:newbug][:alias] = v}
+      parser.on('--assigned_to=ASSGINEE', 'A user to assign the bug to') {|v| opts[:newbug][:assigned_to] = v}
+      parser.on('--comment_is_private', 'Make the description to private') {|v| opts[:newbug][:comment_is_private] = true}
+      parser.on('--groups=GROUPS', 'The list of group names to put this bug into') {|v| opts[:newbug][:groups] = v.split(/,/)}
+      parser.on('--qacontact=USER', 'The QA concact to assign the bug to') {|v| opts[:newbug][:qa_contact] = v}
+      parser.on('--status=STATUS', 'The status that the bug should start out as') {|v| opts[:newbug][:status] = v}
+      parser.on('--resolution=RESOLUTION', 'Set the resolution if filing a closed bug') {|v| opts[:newbug][:resolution] = v}
+      parser.on('--targetmilestone=MILESTONE', 'A valid target milestone for PRODUCT') {|v| opts[:newbug][:target_milestone] = v}
+
+      super
+    end # def parse
+
+    def do(argv, opts)
+      real_do(argv, opts) do |res|
+        if res.include?('id') then
+          printf("A bug has been filed as Bug#%s\n", res['id'])
+        else
+          p res
+        end
+      end
+    end # def do
+
+    private
+
+    def real_do(argv, opts)
+      conf = read_config(opts)
+      conf.freeze
+      # not supporting filing a bug to multiple bugzilla
+      prefix = argv[0]
+      unless conf.include?(prefix) then
+        raise RuntimeError, sprintf("No host information for %s", prefix)
+      end
+
+      info = conf[prefix]
+      uri = URI.parse(info[:URL])
+      host = uri.host
+      port = uri.port
+      path = uri.path.empty? ? nil : uri.path
+      login = opts[:command][:anonymous] == true ? nil : info[:User]
+      pass = opts[:command][:anonymous] == true ? nil : info[:Password]
+      proxy_host, proxy_port = get_proxy(info)
+      timeout = opts[:timeout].nil? ? 60 : opts[:timeout]
+
+      @plugin.run(:pre, host, :newbug, opts)
+
+      xmlrpc = Bugzilla::XMLRPC.new(host, port, path, proxy_host, proxy_port, timeout)
+      user = Bugzilla::User.new(xmlrpc)
+      user.session(login, pass) do
+        bug = Bugzilla::Bug.new(xmlrpc)
+
+        result = bug.create(opts[:command][:newbug])
+
+        @plugin.run(:post, host, :newbug, result)
+
+        yield result
+      end
+    end # def real_do
+
+  end # class Newbug
+
 end # module BzConsole
 
 begin
