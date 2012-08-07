@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
-lib = File.expand_path('../lib/', __FILE__)
+lib = File.expand_path('lib/', File.dirname(__FILE__))
 $:.unshift lib unless $:.include?(lib)
-require 'bugzilla'
+require 'bugzilla/version'
 
 Gem::Specification.new do |s|
   s.name        = "ruby-bugzilla"
