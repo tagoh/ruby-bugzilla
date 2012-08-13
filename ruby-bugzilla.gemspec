@@ -24,7 +24,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency("bundler", [">= 1.0"])
 
   bindir = 'bin'
-  s.executables = Dir.glob('bin/*').map {|x| File.basename x}
+  s.executables = Dir.glob('bin/*').reject {|x| x =~ /~\Z/}.map {|x| File.basename x}
   s.default_executable = 'bzconsole'
 
   s.files        = Dir.glob("lib/**/*") + %w(README.rdoc COPYING)
