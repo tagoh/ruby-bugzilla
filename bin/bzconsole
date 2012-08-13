@@ -890,7 +890,7 @@ begin
     opt.on('-t', '--timeout=SEC', 'Set XMLRPC timeout in a second.') {|v| opts[:timeout] = v.to_i}
     opt.on('-h', '--help', 'show this message') {|x| opts[:help] = true}
 
-    cmds = BzConsole.constants.sort.map {|x| (k = eval("BzConsole::#{x}")).class == Class && x != :CommandTemplate ? x.downcase : nil}.compact
+    cmds = BzConsole.constants.sort.map {|x| (k = eval("BzConsole::#{x}")).class == Class && x != :CommandTemplate ? x.downcase.to_sym : nil}.compact
 
     subargv = opt.order(ARGV);
 
@@ -899,7 +899,7 @@ begin
     if subargv.length > 0 then
       n = cmds.index(command.to_sym)
       unless n.nil? then
-        opts[:instance] = eval("BzConsole::#{cmds[n].capitalize}.new(Bugzilla::Plugin::Template.new)")
+        opts[:instance] = eval("BzConsole::#{cmds[n].to_s.capitalize}.new(Bugzilla::Plugin::Template.new)")
         subargv = opts[:instance].parse(opt, subargv[1..-1], opts[:command])
       else
         STDERR.printf("E: Unknown command: %s\n", subargv[0])
