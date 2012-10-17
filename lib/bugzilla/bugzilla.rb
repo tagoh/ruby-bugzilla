@@ -112,6 +112,16 @@ See http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Bugzilla.ht
 
 =end
 
+=begin rdoc
+
+==== Bugzilla::Bugzilla#parameters
+
+Raw Bugzilla API to obtain parameter values currently used in Bugzilla.
+
+See http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Bugzilla.html
+
+=end
+
     protected
 
     def _version(cmd, *args)
@@ -133,6 +143,18 @@ See http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Bugzilla.ht
 
       @iface.call(cmd)
     end # def _time
+
+    def _parameters(cmd, *args)
+      requires_version(cmd, 4.4)
+
+      @iface.call(cmd)
+    end # def _parameters
+
+    def __last_audit_time(cmd, *args)
+      requires_version(cmd, 4.4)
+
+      # FIXME
+    end # def _last_audit_time
 
   end # class Bugzilla
 

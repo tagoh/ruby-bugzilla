@@ -72,6 +72,8 @@ Keeps the bugzilla session during doing something in the block.
 
 Raw Bugzilla API to log into Bugzilla.
 
+See http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/User.html
+
 =end
 
 =begin rdoc
@@ -79,6 +81,8 @@ Raw Bugzilla API to log into Bugzilla.
 ==== Bugzilla::User#logout
 
 Raw Bugzilla API to log out the user.
+
+See http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/User.html
 
 =end
 
@@ -101,6 +105,10 @@ Raw Bugzilla API to log out the user.
     def __create(cmd, *args)
       # FIXME
     end # def _create
+
+    def __update(cmd, *args)
+      # FIXME
+    end # def _update
 
     def __get(cmd, *args)
       requires_version(cmd, 3.4)

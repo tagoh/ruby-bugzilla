@@ -173,6 +173,8 @@ See http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Bug.html
 Raw Bugzilla API to obtain the information about particular
 bugs in the database.
 
+See http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Bug.html
+
 =end
 
 =begin rdoc
@@ -182,6 +184,8 @@ bugs in the database.
 Raw Bugzilla API to obtain the history of changes for
 particular bugs in the database.
 
+See http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Bug.html
+
 =end
 
 =begin rdoc
@@ -190,6 +194,18 @@ particular bugs in the database.
 
 Raw Bugzilla API to search for bugs based on particular
 criteria.
+
+See http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Bug.html
+
+=end
+
+=begin rdoc
+
+==== Bugzilla::Bug#create(params)
+
+Raw Bugzilla API to create a new bug in Bugzilla.
+
+See http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Bug.html
 
 =end
 
@@ -338,6 +354,11 @@ criteria.
       requires_version(cmd, 3.4)
       # FIXME
     end # def _update_see_also
+
+    def __update_tags(cmd, *args)
+      requires_version(cmd, 4.4)
+      # FIXME
+    end # def _update_tags
 
   end # class Bug
 
