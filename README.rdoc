@@ -4,14 +4,22 @@ This aims to provide similar features in Ruby to access to Bugzilla
 through {WebService APIs}[http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService.html].  currently the following
 APIs are available:
 
-* Bugzilla::WebService::Bugzilla[http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Bugzilla.html]
-* Bugzilla::WebService::Product[http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Product.html]
 * Bugzilla::WebService::Bug[http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Bug.html]
+* Bugzilla::WebService::Bugzilla[http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Bugzilla.html]
+* Bugzilla::WebService::Classification[http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Classification.html]
+* Bugzilla::WebService::Product[http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Product.html]
 * Bugzilla::WebService::User[http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/User.html]
 
 == Copyright
 
 Copyright (c) 2010-2012 Red Hat, Inc. See COPYING for details.
+
+== License
+
+This library is free software: you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation, either
+version 3 of the License, or (at your option) any later version.
 
 == Authors
 
