@@ -33,6 +33,8 @@ create Groups and get information about them.
 
   class Group < APITemplate
 
+    protected
+
     def __create(cmd, *args)
       # FIXME
     end # def _create

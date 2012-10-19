@@ -44,6 +44,8 @@ See http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Classificat
 
 =end
 
+    protected
+
     def _get(cmd, args[0])
       requires_version(cmd, 4.4)
 
