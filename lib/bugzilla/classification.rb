@@ -73,4 +73,3 @@ See http://www.bugzilla.org/docs/tip/en/html/api/Bugzilla/WebService/Classificat
   end # class Classification
 
 end # module Bugzilla
-
