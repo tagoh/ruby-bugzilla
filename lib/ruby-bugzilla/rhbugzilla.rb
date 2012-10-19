@@ -49,6 +49,9 @@ module Bugzilla
         cmd, opts, *etc = args
 	case cmd
         when :search
+          # This parameter is Red Hat Extension
+          # See https://bugzilla.redhat.com/docs/en/html/api/Bugzilla/WebService/Bug.html#search
+          opts[:query_format] = 'advanced'
           extra_field = 0
 
           if opts.include?(:status) then
