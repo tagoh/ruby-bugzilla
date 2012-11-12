@@ -274,10 +274,14 @@ module BzConsole
           printf("Bug#%s - %s\n", result['id'], result['summary'])
           printf("Status:\t\t%s%s\n", result['status'], !result['resolution'].empty? ? sprintf("[%s]", result['resolution']) : "")
           printf("Product:\t%s\n", result['product'])
+          printf("Version:\t%s\n", result['version'])
           printf("Component:\t%s\n", result['component'])
           printf("Assinged To:\t%s\n", result['assigned_to'])
           printf("Priority:\t%s\n", result['priority'])
           printf("Severity:\t%s\n", result['severity'])
+          result.keys.reject {|x| ['id','summary','status','resolution','product','version','component','assigned_to','priority','severity', 'comments'].include?(x)}.each do |x|
+            printf("%s:\t%s\n", x.capitalize, result[x].respond_to?(:to_time) ? result[x].to_time : result[x])
+          end
           printf("Comments:\t%d\n\n", result['comments'].length)
           i = 0
           result['comments'].each do |c|
