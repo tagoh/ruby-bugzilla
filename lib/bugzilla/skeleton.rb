@@ -36,7 +36,7 @@ module Bugzilla
       m = "_#{symbol}"
       klass = self.class.to_s.sub(/\ABugzilla::/, '')
       fm = "#{klass}.#{symbol}"
-      if self.respond_to?(m) then
+      if self.respond_to?(m, true) then
         __send__(m, fm, *args)
       else
         raise NoMethodError, sprintf("No such Bugzilla APIs: %s.%s", klass, symbol)
