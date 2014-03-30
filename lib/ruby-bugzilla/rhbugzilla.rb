@@ -70,12 +70,10 @@ module Bugzilla
             opts.delete(:summary)
           end
           if opts.include?(:cc) then
-            i = 1
-            opts[:cc].each do |e|
-              opts[eval(":emailcc#{i}")] = 1
-              opts[eval(":emailtype#{i}")] = :substring
-              opts[eval(":email#{i}")] = e
-            end
+            # CC should be parsed "any words" by default
+            opts[eval(":emailcc1")] = 1
+            opts[eval(":emailtype1")] = :anywordssubstr
+            opts[eval(":email1")] = opts[:cc]
             opts.delete(:cc)
           end
           if opts.include?(:creation_time) then
