@@ -524,7 +524,6 @@ module BzConsole
 
             @plugin.run(:post, host, :show, result)
 
-            pp result
           else
             product = Bugzilla::Product.new(xmlrpc)
 
