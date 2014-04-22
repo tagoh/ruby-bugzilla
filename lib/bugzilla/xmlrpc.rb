@@ -51,6 +51,7 @@ module Bugzilla
       params = {} if params.nil?
       params['Bugzilla_login'] = user unless user.nil? || password.nil?
       params['Bugzilla_password'] = password unless user.nil? || password.nil?
+      params['Bugzilla_token'] = @token unless @token.nil?
       @xmlrpc.call(cmd, params)
     end # def call
 
@@ -73,6 +74,26 @@ module Bugzilla
     def cookie=(val)
       @xmlrpc.cookie = val
     end # def cookie
+
+=begin rdoc
+
+==== Bugzilla::XMLRPC#token
+
+=end
+
+    def token
+      @token
+    end # def token
+
+=begin rdoc
+
+==== Bugzilla::XMLRPC#token=(val)
+
+=end
+
+    def token=(val)
+      @token = val
+    end # def token
 
   end # class XMLRPC
 
